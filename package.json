@@ -1,7 +1,7 @@
 {
-  "name": "ccode",
+  "name": "@korl3one/ccode",
   "version": "2.0.0",
-  "description": "CCODE: Sistema de Desarrollo Asistido por IA con Contexto Persistente",
+  "description": "CLI de contexto persistente para desarrollo asistido por IA. Genera documentacion, arquitectura, reglas y tareas verificables.",
   "type": "module",
   "main": "dist/cli/index.js",
   "bin": {
@@ -12,20 +12,45 @@
     "dev": "tsc --watch",
     "start": "node dist/cli/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
     "ai",
     "cli",
     "context",
-    "development"
+    "development",
+    "assistant",
+    "typescript",
+    "project-management",
+    "documentation",
+    "architecture",
+    "tasks",
+    "claude",
+    "ollama",
+    "llm",
+    "persistent-context"
   ],
-  "author": "Johannes Moreno",
+  "author": "Johannes Moreno <korl3one>",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iDevelop25/ccode.git"
+  },
+  "homepage": "https://github.com/iDevelop25/ccode#readme",
+  "bugs": {
+    "url": "https://github.com/iDevelop25/ccode/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "files": [
     "dist",
     "README.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "axios": "^1.13.6",
     "chalk": "^5.6.2",
