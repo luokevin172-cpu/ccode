@@ -1,13 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" fill="none">
-  <rect width="600" height="200" rx="12" fill="#0a1628"/>
-
-  <!-- Logo text with gradient colors matching brand -->
-  <text font-family="monospace" font-weight="bold" font-size="28">
-    <tspan x="95" y="45" fill="#90E0EF">   ██████╗ ██████╗  ██████╗ ██████╗ ███████╗</tspan>
-    <tspan x="95" y="73" fill="#48CAE4">  ██╔════╝██╔════╝ ██╔═══██╗██╔══██╗██╔════╝</tspan>
-    <tspan x="95" y="101" fill="#00B4D8">  ██║     ██║      ██║   ██║██║  ██║█████╗</tspan>
-    <tspan x="95" y="129" fill="#0096C7">  ██║     ██║      ██║   ██║██║  ██║██╔══╝</tspan>
-    <tspan x="95" y="157" fill="#0077B6">  ╚██████╗╚██████╗ ╚██████╔╝██████╔╝███████╗</tspan>
-    <tspan x="95" y="185" fill="#023E8A">   ╚═════╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝</tspan>
-  </text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 160" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#90E0EF"/>
+      <stop offset="50%" style="stop-color:#00B4D8"/>
+      <stop offset="100%" style="stop-color:#023E8A"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="160" rx="16" fill="#0a1628"/>
+  <text x="300" y="85" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="80" fill="url(#grad)" text-anchor="middle" letter-spacing="12">CCODE</text>
+  <text x="300" y="125" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#90E0EF" text-anchor="middle" opacity="0.8">Context-Persistent AI Development</text>
 </svg>
