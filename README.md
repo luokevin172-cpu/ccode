@@ -46,17 +46,20 @@ Cuando trabajas con IA en un proyecto grande, el contexto se pierde al cambiar d
 ### Instalacion
 
 ```bash
-# Clonar el repositorio
+npm install -g @korl3one/ccode
+```
+
+Eso es todo. Ya puedes usar `ccode` en cualquier proyecto.
+
+### Contribuir al desarrollo
+
+Si quieres colaborar con el proyecto:
+
+```bash
 git clone https://github.com/iDevelop25/ccode.git
 cd ccode
-
-# Instalar dependencias
 npm install
-
-# Compilar
 npm run build
-
-# Vincular globalmente
 npm link
 ```
 
