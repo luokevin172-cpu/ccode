@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import ora from 'ora';
 import * as path from 'path';
 import * as fs from 'fs';
+import updateNotifier from 'update-notifier';
 import {
   showLogo, showWelcome, showHeader, showStep, showSuccess, showError,
   showWarning, showInfo, showNextStep, showFileTree, showProgressBar, c,
@@ -1100,12 +1101,17 @@ async function handleDoctor(): Promise<void> {
 // ─── CLI Setup ──────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // Notificar si hay una version nueva disponible
+  const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'));
+  const notifier = updateNotifier({ pkg, updateCheckInterval: 1000 * 60 * 60 * 4 }); // cada 4 horas
+  notifier.notify({ isGlobal: true });
+
   const program = new Command();
 
   program
     .name('ccode')
     .description('CCODE: Contexto Persistente para Desarrollo con IA')
-    .version('2.2.0');
+    .version(pkg.version);
 
   // Comandos individuales (para uso rápido sin sesión)
   program.command('init').description('Inicializa el contexto del proyecto').action(async () => {
