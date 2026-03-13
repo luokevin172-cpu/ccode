@@ -210,6 +210,10 @@ async function startSession(): Promise<void> {
       { name: '  📋  Generar / actualizar plan de tareas', value: 'plan' },
       { name: `  📊  Ver estado completo`, value: 'status' },
       { name: '  📄  Ver contexto generado', value: 'context' },
+      { name: '  🔄  Actualizar contexto (re-analizar proyecto)', value: 'update' },
+      { name: '  📤  Exportar contexto para otra IA', value: 'export' },
+      { name: '  💡  Explicar proyecto (resumen rápido)', value: 'explain' },
+      { name: '  🩺  Doctor (diagnóstico de salud)', value: 'doctor' },
     );
 
     if (hasConfig) {
@@ -247,6 +251,10 @@ async function startSession(): Promise<void> {
       complete: handleComplete,
       status: handleStatus,
       context: handleContext,
+      update: handleUpdate,
+      export: handleExport,
+      explain: handleExplain,
+      doctor: handleDoctor,
     };
 
     if (handlers[action]) {
@@ -855,6 +863,240 @@ async function handleContext(): Promise<void> {
   console.log('');
 }
 
+// ─── UPDATE ─────────────────────────────────────────────────────────
+
+async function handleUpdate(): Promise<void> {
+  if (!(await requireInit())) return;
+  const config = await requireAI();
+  if (!config) return;
+
+  showHeader('Actualizar Contexto');
+
+  const spinner = ora({ text: 'Analizando proyecto...', color: 'cyan', spinner: 'dots' }).start();
+
+  try {
+    const ccodePath = path.join(process.cwd(), '.ccode');
+    const contextEngine = new ContextEngine();
+    await contextEngine.load();
+    const ctx = contextEngine.getContext();
+
+    // Leer archivos del proyecto
+    const projectFiles = listProjectFiles(process.cwd());
+
+    // Leer contexto actual
+    const currentProject = await FileUtils.readFileSafe(path.join(ccodePath, 'project.md'));
+    const currentArch = await FileUtils.readFileSafe(path.join(ccodePath, 'architecture.md'));
+    const currentRules = await FileUtils.readFileSafe(path.join(ccodePath, 'rules.md'));
+
+    spinner.text = 'Actualizando con IA...';
+
+    const provider = AIManager.getProvider(config);
+    const updatePrompt = `Eres un arquitecto de software. Analiza el estado ACTUAL del proyecto y actualiza la documentación existente.
+
+=== DOCUMENTACIÓN ACTUAL ===
+${currentProject}
+
+=== ARQUITECTURA ACTUAL ===
+${currentArch}
+
+=== REGLAS ACTUALES ===
+${currentRules}
+
+=== ARCHIVOS EN EL PROYECTO ===
+${projectFiles.join('\n')}
+
+Actualiza la documentación para reflejar los archivos y estructura actuales del proyecto. Mantén lo que siga siendo válido, actualiza lo que haya cambiado, agrega lo nuevo.
+
+Responde ÚNICAMENTE con JSON válido:
+{
+  "project": "Contenido actualizado de project.md",
+  "architecture": "Contenido actualizado de architecture.md",
+  "rules": "Contenido actualizado de rules.md",
+  "changes": ["Lista de cambios detectados"]
+}`;
+
+    const response = await provider.generate(updatePrompt);
+    const result = PromptBuilder.parseJSON<{
+      project: string; architecture: string; rules: string; changes: string[];
+    }>(response);
+
+    await FileUtils.writeFile(path.join(ccodePath, 'project.md'), result.project);
+    await FileUtils.writeFile(path.join(ccodePath, 'architecture.md'), result.architecture);
+    await FileUtils.writeFile(path.join(ccodePath, 'rules.md'), result.rules);
+
+    spinner.succeed(c.success('Contexto actualizado'));
+
+    if (result.changes && result.changes.length > 0) {
+      console.log('');
+      console.log(c.accent('  Cambios detectados:'));
+      result.changes.forEach(change => console.log(c.dim(`    • ${change}`)));
+    }
+    console.log('');
+  } catch (error: unknown) {
+    spinner.fail('Error');
+    showError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+// ─── EXPORT ─────────────────────────────────────────────────────────
+
+async function handleExport(): Promise<void> {
+  if (!(await requireInit())) return;
+
+  showHeader('Exportar Contexto');
+
+  const pb = new PromptBuilder();
+  const fullContext = await pb.buildContextPrompt();
+
+  const exportPath = path.join(process.cwd(), '.ccode', 'context-export.md');
+  await FileUtils.writeFile(exportPath, `# CCODE — Project Context Export\n\n${fullContext}`);
+
+  showSuccess('Contexto exportado a .ccode/context-export.md');
+  showInfo('Copia el contenido y pégalo en cualquier chat de IA (ChatGPT, Claude, Gemini, etc.).');
+  console.log('');
+}
+
+// ─── EXPLAIN ────────────────────────────────────────────────────────
+
+async function handleExplain(): Promise<void> {
+  if (!(await requireInit())) return;
+
+  showHeader('Resumen del Proyecto');
+
+  const ccodePath = path.join(process.cwd(), '.ccode');
+  const projectMd = await FileUtils.readFileSafe(path.join(ccodePath, 'project.md'));
+  const archMd = await FileUtils.readFileSafe(path.join(ccodePath, 'architecture.md'));
+
+  const taskEngine = new TaskEngine();
+  await taskEngine.load();
+  const stats = taskEngine.getStats();
+  const projectFiles = listProjectFiles(process.cwd());
+
+  // Extraer info clave
+  console.log(c.bold('  Proyecto'));
+  projectMd.split('\n').slice(0, 8).forEach(line => {
+    if (line.trim()) console.log(`  ${line}`);
+  });
+
+  console.log('');
+  console.log(c.bold('  Arquitectura'));
+  archMd.split('\n').slice(0, 12).forEach(line => {
+    if (line.trim()) console.log(`  ${line}`);
+  });
+
+  console.log('');
+  console.log(c.bold('  Archivos detectados'));
+  const dirs = projectFiles.filter(f => f.endsWith('/')).slice(0, 10);
+  dirs.forEach(d => console.log(c.accent(`    ${d}`)));
+  const fileCount = projectFiles.filter(f => !f.endsWith('/')).length;
+  console.log(c.dim(`    ${fileCount} archivos en total`));
+
+  console.log('');
+  console.log(c.bold('  Progreso'));
+  console.log(`  ${showProgressBar(stats.completed, stats.total)}`);
+  console.log(c.dim(`    ${stats.completed} completadas, ${stats.in_progress} en progreso, ${stats.pending} pendientes, ${stats.failed} fallidas`));
+  console.log('');
+}
+
+// ─── DOCTOR ─────────────────────────────────────────────────────────
+
+async function handleDoctor(): Promise<void> {
+  if (!(await requireInit())) return;
+
+  showHeader('Diagnóstico del Proyecto');
+
+  const ccodePath = path.join(process.cwd(), '.ccode');
+  let issues = 0;
+
+  // 1. Verificar archivos de contexto
+  const requiredFiles = [
+    { file: 'context.json', label: 'Configuración del proyecto' },
+    { file: 'state.json', label: 'Estado del workflow' },
+    { file: 'project.md', label: 'Documentación del proyecto' },
+    { file: 'architecture.md', label: 'Arquitectura' },
+    { file: 'rules.md', label: 'Reglas de desarrollo' },
+    { file: 'tasks.json', label: 'Checklist de tareas' },
+    { file: 'memory.md', label: 'Historial de decisiones' },
+  ];
+
+  console.log(c.bold('  Archivos de contexto'));
+  for (const { file, label } of requiredFiles) {
+    const exists = await FileUtils.exists(path.join(ccodePath, file));
+    if (exists) {
+      const content = await FileUtils.readFileSafe(path.join(ccodePath, file));
+      if (content.trim().length < 5) {
+        console.log(c.warning(`  ⚠ ${label} (${file}) — existe pero está vacío`));
+        issues++;
+      } else {
+        console.log(c.success(`  ✓ ${label}`));
+      }
+    } else {
+      console.log(c.error(`  ✗ ${label} (${file}) — no encontrado`));
+      issues++;
+    }
+  }
+
+  // 2. Proveedor de IA
+  console.log('');
+  console.log(c.bold('  Proveedor de IA'));
+  const config = await AIManager.loadConfig();
+  if (config) {
+    console.log(c.success(`  ✓ Configurado: ${config.provider} (${config.model || 'default'})`));
+
+    // Test de conexión
+    const spinner = ora({ text: '  Probando conexión...', color: 'cyan', spinner: 'dots' }).start();
+    const connected = await AIManager.testConnection(config);
+    if (connected) {
+      spinner.succeed(c.success('Conexión activa'));
+    } else {
+      spinner.fail(c.error('No se pudo conectar'));
+      issues++;
+    }
+  } else {
+    console.log(c.warning(`  ⚠ No configurado — ejecuta "Conectar IA"`));
+    issues++;
+  }
+
+  // 3. Tareas
+  console.log('');
+  console.log(c.bold('  Tareas'));
+  const taskEngine = new TaskEngine();
+  await taskEngine.load();
+  const stats = taskEngine.getStats();
+
+  if (stats.total === 0) {
+    console.log(c.warning('  ⚠ No hay tareas — ejecuta "Generar plan"'));
+    issues++;
+  } else {
+    console.log(c.success(`  ✓ ${stats.total} tareas en total`));
+    if (stats.completed > 0) console.log(c.success(`  ✓ ${stats.completed} completadas`));
+    if (stats.in_progress > 0) console.log(c.accent(`  ◐ ${stats.in_progress} en progreso`));
+    if (stats.pending > 0) console.log(c.warning(`  ⚠ ${stats.pending} pendientes`));
+    if (stats.failed > 0) {
+      console.log(c.error(`  ✗ ${stats.failed} fallidas — necesitan replantearse`));
+      issues++;
+    }
+  }
+
+  // 4. Archivos del proyecto
+  console.log('');
+  console.log(c.bold('  Proyecto'));
+  const projectFiles = listProjectFiles(process.cwd());
+  const fileCount = projectFiles.filter(f => !f.endsWith('/')).length;
+  const dirCount = projectFiles.filter(f => f.endsWith('/')).length;
+  console.log(c.success(`  ✓ ${fileCount} archivos en ${dirCount} directorios`));
+
+  // Resumen
+  console.log('');
+  console.log(c.dim('  ─────────────────────────────────────────────'));
+  if (issues === 0) {
+    console.log(c.success('  ✓ Todo en orden — el proyecto está saludable'));
+  } else {
+    console.log(c.warning(`  ⚠ ${issues} problema${issues > 1 ? 's' : ''} encontrado${issues > 1 ? 's' : ''}`));
+  }
+  console.log('');
+}
+
 // ─── CLI Setup ──────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -863,7 +1105,7 @@ async function main(): Promise<void> {
   program
     .name('ccode')
     .description('CCODE: Contexto Persistente para Desarrollo con IA')
-    .version('2.0.0');
+    .version('2.2.0');
 
   // Comandos individuales (para uso rápido sin sesión)
   program.command('init').description('Inicializa el contexto del proyecto').action(async () => {
@@ -878,6 +1120,10 @@ async function main(): Promise<void> {
   program.command('complete').description('Completa una tarea').action(handleComplete);
   program.command('status').description('Estado del proyecto').action(handleStatus);
   program.command('context').description('Ver contexto generado').action(handleContext);
+  program.command('update').description('Re-analiza y actualiza el contexto').action(handleUpdate);
+  program.command('export').description('Exporta contexto como .md para cualquier IA').action(handleExport);
+  program.command('explain').description('Resumen rápido del proyecto').action(handleExplain);
+  program.command('doctor').description('Diagnóstico de salud del proyecto').action(handleDoctor);
 
   if (process.argv.length <= 2) {
     // Sin argumentos → sesión interactiva
