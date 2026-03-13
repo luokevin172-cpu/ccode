@@ -76,7 +76,7 @@ Any developer or AI can read `.ccode/` and understand the project instantly.
 | Verifiable task checklist | ✅ | ❌ |
 | Auto-detect file changes | ✅ | ❌ |
 | AI-powered task verification | ✅ | ❌ |
-| Works with 6 AI providers | ✅ | ❌ |
+| Works with Google Gemini and Claude | ✅ | ❌ |
 | Context lives in the repo (Git) | ✅ | ❌ |
 
 </div>
@@ -153,14 +153,12 @@ Like a linter, but for your project context. Checks files, AI connection, task s
 
 | Provider | Models | Note |
 |----------|--------|------|
-| **Claude** (Anthropic) | Sonnet 4, Haiku 3.5, Opus 4 | Recommended |
-| **OpenAI** (ChatGPT) | GPT-4o, GPT-4o mini, GPT-4.1, o3-mini | Most popular |
-| **Google Gemini** | 2.5 Flash, 2.5 Pro, 2.0 Flash | Free tier available |
-| **DeepSeek** | Chat, Reasoner | Budget-friendly |
-| **Groq** | Llama 3.3 70B, Llama 3.1 8B, Mixtral | Ultra-fast, free tier |
-| **Ollama** | Any local model | Offline, no API key |
+| **Google Gemini** | 2.5 Flash, 2.5 Pro, 2.0 Flash | Free — just a Google account |
+| **Claude** (Anthropic) | Sonnet 4, Haiku 3.5, Opus 4 | Best quality |
 
 </div>
+
+CCODE auto-detects your API key from environment variables (`GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`). Zero config if you already have one set.
 
 ---
 
@@ -203,7 +201,7 @@ Everything lives in `.ccode/` inside your repository:
 src/
 ├── cli/           Session, branding, file watcher
 ├── core/          Context engine, tasks, prompt builder
-├── ai/            6 provider adapters (Adapter pattern)
+├── ai/            Provider adapters (Adapter pattern)
 └── utils/         File system abstraction
 ```
 
