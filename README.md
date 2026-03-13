@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="CCODE" width="600"/>
+<img src="assets/logo.png" alt="CCODE" width="600"/>
 
 <br/>
 <br/>
