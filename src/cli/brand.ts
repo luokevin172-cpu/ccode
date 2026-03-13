@@ -31,7 +31,7 @@ export function showLogo(): void {
   LOGO_LINES.forEach((line, i) => {
     console.log(chalk.hex(GRADIENT[i])(line));
   });
-  console.log(c.dim('  Context-Persistent AI Development  v2.0'));
+  console.log(c.dim('  Context-Persistent AI Development  v3.0'));
   console.log('');
 }
 

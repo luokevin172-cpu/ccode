@@ -1,51 +1,80 @@
-# Roles de Ingenieria (AGENTS.md)
+# CCODE
 
-Roles especializados que operan sobre CCODE. Cada cambio significativo debe ser validado desde multiples perspectivas.
+Persistent context CLI for AI-assisted development. Generates documentation, architecture, rules, and a verifiable task checklist — synced to every major AI tool.
+
+## Architecture
+
+```
+src/
+├── cli/            Session loop, branding, file watcher
+│   ├── index.ts    Main CLI entry point, commands, handlers
+│   ├── brand.ts    Colors, logo, UI components
+│   └── watcher.ts  FileWatcher (fs.watch, debounce)
+├── core/           Business logic
+│   ├── context.ts  ContextEngine — persistent state in .ccode/
+│   ├── tasks.ts    TaskEngine — task CRUD, priorities, stats
+│   ├── exports.ts  ContextExporter — universal context sync
+│   └── prompt-builder.ts  Meta-prompts for context generation
+├── ai/             Provider adapters (Adapter pattern)
+│   ├── provider.ts IAIProvider interface
+│   ├── manager.ts  AIManager — auto-detection, config, factory
+│   ├── claude.ts   Claude (Anthropic) adapter
+│   └── gemini.ts   Gemini adapter (API key + OAuth)
+└── utils/
+    └── files.ts    File system abstraction (fs-extra)
+```
+
+**Patterns:** Adapter (AI providers) · Observer (file watcher) · State Machine (workflow) · Builder (prompts)
+
+## Key Principle
+
+CCODE generates context, never code. Tasks describe WHAT to achieve, not HOW to implement it.
+
+## Development Guidelines
+
+- TypeScript with ESM (`"type": "module"`, NodeNext resolution)
+- All dependencies are ESM-only (chalk v5, inquirer v13, ora v8)
+- Tests with Vitest
+- Conventional commits (`feat:`, `fix:`, `docs:`, `chore:`)
+- AI providers implement `IAIProvider` interface (generate + getName)
+
+## Context Sync
+
+CCODE generates context files for multiple AI tools from `.ccode/` source:
+
+| File | Tool |
+|------|------|
+| `AGENTS.md` | Open Standard |
+| `CLAUDE.md` | Claude Code |
+| `GEMINI.md` | Gemini CLI |
+| `.cursorrules` | Cursor |
+| `.github/copilot-instructions.md` | GitHub Copilot |
+
+All generated from the same source of truth in `.ccode/`.
+
+## Commands
+
+| Command | Handler |
+|---------|---------|
+| `ccode init` | `handleInit()` — wizard + context generation + sync |
+| `ccode sync` | `handleSync()` — regenerate all AI tool context files |
+| `ccode update` | `handleUpdate()` — re-analyze project with AI |
+| `ccode export` | `handleExport()` — export universal or per-tool |
+| `ccode verify` | `handleVerify()` — AI-powered task verification |
+| `ccode doctor` | `handleDoctor()` — health check |
+| `ccode status` | `handleStatus()` — dashboard |
+| `ccode connect` | `handleConnect()` — AI provider setup |
 
 ## Roles
 
-### Architect (Arquitecto)
-**Responsabilidad:** Estructura de alto nivel, patrones de diseno, coherencia del sistema.
-- **Enfoque:** Escalabilidad, mantenibilidad, SOLID.
-- **Artifacts:** `architecture.md`, decisiones en `memory.md`.
-- **Pregunta clave:** "Es esta la mejor estructura a largo plazo?"
+### Architect
+Structure, patterns, scalability. Validates `.ccode/architecture.md`.
 
-### Developer (Desarrollador)
-**Responsabilidad:** Implementar logica limpia y eficiente.
-- **Enfoque:** TypeScript, ESM, manejo de errores.
-- **Artifacts:** Codigo fuente en `src/`.
-- **Pregunta clave:** "Funciona y es legible?"
+### Developer
+Clean TypeScript, error handling, ESM compliance. Works in `src/`.
 
-### Tester (QA)
-**Responsabilidad:** Asegurar que el codigo funciona y es robusto.
-- **Enfoque:** Casos borde, validacion de inputs, integracion.
-- **Artifacts:** Tests, scripts de validacion.
-- **Pregunta clave:** "Como puedo romper esto?"
+### Tester
+Edge cases, input validation, integration. Tests in `tests/`.
 
-### Educator (Educador)
-**Responsabilidad:** Transformar el proyecto en recurso de aprendizaje.
-- **Enfoque:** Metodologia QP2C (Que, Como, Por que, Para que).
-- **Artifacts:** `docs/learning/`, `SKILLS.md`.
-- **Pregunta clave:** "Lo entenderia alguien nuevo en el proyecto?"
-
-### Project Manager (Gestor)
-**Responsabilidad:** Mantener el rumbo y el contexto.
-- **Enfoque:** Progreso, priorizacion, MVP.
-- **Artifacts:** `tasks.json`, `.ccode/context.json`, `.ccode/state.json`.
-- **Pregunta clave:** "Estamos avanzando hacia los objetivos?"
-
-## Flujo por tarea
-
-1. **PM:** Define objetivo
-2. **Architect:** Valida enfoque
-3. **Developer:** Implementa
-4. **Tester:** Verifica
-5. **Educator:** Documenta en el libro de aprendizaje
-6. **Architect:** Registra decision en `memory.md`
-
-## Contexto CCODE v2
-
-CCODE es una **capa de contexto** — genera documentacion, arquitectura, reglas y tareas verificables. Nunca genera codigo. La sesion persistente observa cambios y verifica progreso automaticamente via IA.
-
----
-*Multiples perspectivas aseguran que CCODE sea un producto robusto y un recurso de aprendizaje.*
+### Project Manager
+Progress tracking, prioritization. Manages `tasks.json`, `state.json`.

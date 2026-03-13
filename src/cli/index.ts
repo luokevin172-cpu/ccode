@@ -15,6 +15,7 @@ import { TaskEngine, ITask } from '../core/tasks.js';
 import { PromptBuilder } from '../core/prompt-builder.js';
 import { AIManager, ICCODEConfig, PROVIDER_INFO, ProviderName } from '../ai/manager.js';
 import { GeminiAdapter } from '../ai/gemini.js';
+import { ContextExporter } from '../core/exports.js';
 import { exec } from 'child_process';
 import { FileWatcher, displayChanges } from './watcher.js';
 
@@ -259,6 +260,7 @@ async function startSession(): Promise<void> {
       { name: `  📊  Ver estado completo`, value: 'status' },
       { name: '  📄  Ver contexto generado', value: 'context' },
       { name: '  🔄  Actualizar contexto (re-analizar proyecto)', value: 'update' },
+      { name: '  🔗  Sincronizar contexto (AGENTS.md, CLAUDE.md, ...)', value: 'sync' },
       { name: '  📤  Exportar contexto para otra IA', value: 'export' },
       { name: '  💡  Explicar proyecto (resumen rápido)', value: 'explain' },
       { name: '  🩺  Doctor (diagnóstico de salud)', value: 'doctor' },
@@ -300,6 +302,7 @@ async function startSession(): Promise<void> {
       status: handleStatus,
       context: handleContext,
       update: handleUpdate,
+      sync: handleSync,
       export: handleExport,
       explain: handleExplain,
       doctor: handleDoctor,
@@ -469,6 +472,20 @@ async function handleInit(): Promise<void> {
       { name: 'config.json    ', desc: `IA: ${aiConfig.provider}` },
     ]);
     console.log('');
+
+    // ─── Sincronizar contexto a todas las herramientas AI ───
+    const syncSpinner = ora({ text: 'Sincronizando contexto con herramientas AI...', color: 'cyan', spinner: 'dots' }).start();
+    try {
+      const exporter = new ContextExporter();
+      const exported = await exporter.exportAll();
+      syncSpinner.succeed(c.success('Contexto sincronizado'));
+
+      console.log(c.dim('\n  Archivos de contexto generados:\n'));
+      showFileTree(exported.map(e => ({ name: e.file, desc: e.label.split('(')[1]?.replace(')', '') || '' })));
+      console.log('');
+    } catch {
+      syncSpinner.warn(c.warning('No se pudo sincronizar (los archivos .ccode/ se crearon correctamente)'));
+    }
 
     showSuccess('CCODE se queda activo observando tu proyecto.');
     showInfo('Abre otra terminal y empieza a desarrollar.');
@@ -971,6 +988,56 @@ Responde ÚNICAMENTE con JSON válido:
       console.log(c.accent('  Cambios detectados:'));
       result.changes.forEach(change => console.log(c.dim(`    • ${change}`)));
     }
+
+    // Sincronizar exports después de actualizar contexto
+    const syncSpinner = ora({ text: 'Sincronizando exports...', color: 'cyan', spinner: 'dots' }).start();
+    try {
+      const exporter = new ContextExporter();
+      const existing = await exporter.detectExisting();
+      if (existing.length > 0) {
+        for (const format of existing) {
+          await exporter.exportFormat(format);
+        }
+        syncSpinner.succeed(c.success(`${existing.length} export${existing.length > 1 ? 's' : ''} actualizado${existing.length > 1 ? 's' : ''}`));
+      } else {
+        syncSpinner.info(c.dim('Sin exports previos. Usa "export" para generarlos.'));
+      }
+    } catch {
+      syncSpinner.warn(c.warning('No se pudieron actualizar los exports'));
+    }
+    console.log('');
+  } catch (error: unknown) {
+    spinner.fail('Error');
+    showError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+// ─── SYNC ──────────────────────────────────────────────────────────
+
+async function handleSync(): Promise<void> {
+  if (!(await requireInit())) return;
+
+  showHeader('Sincronizar Contexto', 'Genera archivos de contexto para cada herramienta AI');
+
+  const exporter = new ContextExporter();
+  const existing = await exporter.detectExisting();
+
+  if (existing.length > 0) {
+    showInfo(`Exports existentes: ${existing.map(f => ContextExporter.FORMATS[f].file).join(', ')}`);
+  }
+
+  const spinner = ora({ text: 'Generando archivos de contexto...', color: 'cyan', spinner: 'dots' }).start();
+
+  try {
+    const exported = await exporter.exportAll();
+    spinner.succeed(c.success('Contexto sincronizado con todas las herramientas'));
+
+    console.log('');
+    showFileTree(exported.map(e => ({ name: e.file, desc: e.label.split('(')[1]?.replace(')', '') || '' })));
+    console.log('');
+
+    showInfo('Cada herramienta AI leera su archivo automaticamente.');
+    showInfo('Los archivos se actualizan con cada "sync", "update" o "init".');
     console.log('');
   } catch (error: unknown) {
     spinner.fail('Error');
@@ -985,14 +1052,70 @@ async function handleExport(): Promise<void> {
 
   showHeader('Exportar Contexto');
 
-  const pb = new PromptBuilder();
-  const fullContext = await pb.buildContextPrompt();
+  const { mode } = await inquirer.prompt([{
+    type: 'select' as 'list',
+    name: 'mode',
+    message: 'Tipo de export:',
+    choices: [
+      { name: '  Sincronizar con todas las herramientas AI', value: 'all' },
+      { name: '  Solo export universal (.md para copiar/pegar)', value: 'universal' },
+      { name: '  Elegir herramientas específicas', value: 'pick' },
+    ],
+  }]);
 
-  const exportPath = path.join(process.cwd(), '.ccode', 'context-export.md');
-  await FileUtils.writeFile(exportPath, `# CCODE — Project Context Export\n\n${fullContext}`);
+  const exporter = new ContextExporter();
 
-  showSuccess('Contexto exportado a .ccode/context-export.md');
-  showInfo('Copia el contenido y pégalo en cualquier chat de IA (ChatGPT, Claude, Gemini, etc.).');
+  if (mode === 'universal') {
+    const content = await exporter.generateUniversalExport();
+    const exportPath = path.join(process.cwd(), '.ccode', 'context-export.md');
+    await FileUtils.writeFile(exportPath, content);
+    showSuccess('Contexto exportado a .ccode/context-export.md');
+    showInfo('Copia el contenido y pegalo en cualquier chat de IA.');
+    console.log('');
+    return;
+  }
+
+  if (mode === 'pick') {
+    const formats = Object.entries(ContextExporter.FORMATS);
+    const existing = await exporter.detectExisting();
+
+    const { selected } = await inquirer.prompt([{
+      type: 'checkbox' as 'list',
+      name: 'selected',
+      message: 'Selecciona los formatos:',
+      choices: formats.map(([key, info]) => ({
+        name: `  ${info.label}${existing.includes(key) ? c.dim(' (existe)') : ''}`,
+        value: key,
+        checked: true,
+      })),
+    }]);
+
+    if (selected.length === 0) {
+      showWarning('No se selecciono ningun formato.');
+      return;
+    }
+
+    const spinner = ora({ text: 'Generando exports...', color: 'cyan', spinner: 'dots' }).start();
+    for (const format of selected) {
+      await exporter.exportFormat(format);
+    }
+    spinner.succeed(c.success(`${selected.length} formato${selected.length > 1 ? 's' : ''} exportado${selected.length > 1 ? 's' : ''}`));
+
+    for (const format of selected) {
+      const info = ContextExporter.FORMATS[format];
+      console.log(c.dim(`    ${info.file}`));
+    }
+    console.log('');
+    return;
+  }
+
+  // mode === 'all'
+  const spinner = ora({ text: 'Sincronizando con todas las herramientas AI...', color: 'cyan', spinner: 'dots' }).start();
+  const exported = await exporter.exportAll();
+  spinner.succeed(c.success('Contexto sincronizado'));
+
+  console.log(c.dim('\n  Archivos generados:\n'));
+  showFileTree(exported.map(e => ({ name: e.file, desc: e.label.split('(')[1]?.replace(')', '') || '' })));
   console.log('');
 }
 
@@ -1119,7 +1242,26 @@ async function handleDoctor(): Promise<void> {
     }
   }
 
-  // 4. Archivos del proyecto
+  // 4. Exports de contexto
+  console.log('');
+  console.log(c.bold('  Exports de contexto'));
+  const exporter = new ContextExporter();
+  const existingExports = await exporter.detectExisting();
+  if (existingExports.length > 0) {
+    for (const format of existingExports) {
+      const info = ContextExporter.FORMATS[format];
+      console.log(c.success(`  ✓ ${info.file}`));
+    }
+    const missing = Object.keys(ContextExporter.FORMATS).length - existingExports.length;
+    if (missing > 0) {
+      console.log(c.dim(`  ${missing} formato${missing > 1 ? 's' : ''} disponible${missing > 1 ? 's' : ''} sin generar`));
+    }
+  } else {
+    console.log(c.warning('  ⚠ Sin exports — ejecuta "Sincronizar contexto" para generarlos'));
+    issues++;
+  }
+
+  // 5. Archivos del proyecto
   console.log('');
   console.log(c.bold('  Proyecto'));
   const projectFiles = listProjectFiles(process.cwd());
@@ -1167,6 +1309,7 @@ async function main(): Promise<void> {
   program.command('status').description('Estado del proyecto').action(handleStatus);
   program.command('context').description('Ver contexto generado').action(handleContext);
   program.command('update').description('Re-analiza y actualiza el contexto').action(handleUpdate);
+  program.command('sync').description('Sincroniza contexto con todas las herramientas AI').action(handleSync);
   program.command('export').description('Exporta contexto como .md para cualquier IA').action(handleExport);
   program.command('explain').description('Resumen rápido del proyecto').action(handleExplain);
   program.command('doctor').description('Diagnóstico de salud del proyecto').action(handleDoctor);

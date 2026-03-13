@@ -1,7 +1,7 @@
 {
   "name": "@korl3one/ccode",
   "version": "3.0.0",
-  "description": "CLI de contexto persistente para desarrollo asistido por IA. Genera documentacion, arquitectura, reglas y tareas verificables.",
+  "description": "Persistent context CLI for AI-assisted development. Generates documentation, architecture, rules, and tasks — synced to Claude Code, Gemini CLI, Cursor, Copilot, and AGENTS.md.",
   "type": "module",
   "main": "dist/cli/index.js",
   "bin": {
@@ -19,6 +19,7 @@
     "ai",
     "cli",
     "context",
+    "context-engineering",
     "development",
     "assistant",
     "typescript",
@@ -27,9 +28,13 @@
     "architecture",
     "tasks",
     "claude",
-    "ollama",
+    "gemini",
+    "cursor",
+    "copilot",
+    "agents-md",
     "llm",
-    "persistent-context"
+    "persistent-context",
+    "context-sync"
   ],
   "author": "Johannes Moreno <korl3one>",
   "license": "ISC",
