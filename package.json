@@ -1,6 +1,6 @@
 {
   "name": "@korl3one/ccode",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "CLI de contexto persistente para desarrollo asistido por IA. Genera documentacion, arquitectura, reglas y tareas verificables.",
   "type": "module",
   "main": "dist/cli/index.js",
