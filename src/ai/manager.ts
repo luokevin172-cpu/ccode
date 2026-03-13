@@ -1,11 +1,17 @@
 import * as path from 'path';
 import { IAIProvider } from './provider.js';
 import { ClaudeAdapter } from './claude.js';
+import { OpenAIAdapter } from './openai.js';
+import { GeminiAdapter } from './gemini.js';
+import { DeepSeekAdapter } from './deepseek.js';
+import { GroqAdapter } from './groq.js';
 import { OllamaAdapter } from './ollama.js';
 import { FileUtils } from '../utils/files.js';
 
+export type ProviderName = 'claude' | 'openai' | 'gemini' | 'deepseek' | 'groq' | 'ollama';
+
 export interface ICCODEConfig {
-  provider: 'claude' | 'ollama';
+  provider: ProviderName;
   apiKey?: string;
   model?: string;
   baseUrl?: string;
@@ -34,6 +40,14 @@ export class AIManager {
     switch (config.provider) {
       case 'claude':
         return new ClaudeAdapter({ apiKey: config.apiKey, model: config.model });
+      case 'openai':
+        return new OpenAIAdapter({ apiKey: config.apiKey, model: config.model });
+      case 'gemini':
+        return new GeminiAdapter({ apiKey: config.apiKey, model: config.model });
+      case 'deepseek':
+        return new DeepSeekAdapter({ apiKey: config.apiKey, model: config.model });
+      case 'groq':
+        return new GroqAdapter({ apiKey: config.apiKey, model: config.model });
       case 'ollama':
         return new OllamaAdapter({ model: config.model, baseUrl: config.baseUrl });
       default:

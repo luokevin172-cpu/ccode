@@ -48,39 +48,77 @@ async function promptAIConfig(): Promise<ICCODEConfig> {
     message: 'Proveedor de IA:',
     choices: [
       { name: '  Claude (Anthropic) — Recomendado', value: 'claude' },
-      { name: '  Ollama (Local)', value: 'ollama' },
+      { name: '  OpenAI (ChatGPT)', value: 'openai' },
+      { name: '  Google Gemini', value: 'gemini' },
+      { name: '  DeepSeek', value: 'deepseek' },
+      { name: '  Groq (ultra-rápido)', value: 'groq' },
+      { name: '  Ollama (local, sin API key)', value: 'ollama' },
     ],
   }]);
 
   const config: ICCODEConfig = { provider };
 
-  if (provider === 'claude') {
+  // Modelos por proveedor
+  const modelChoices: Record<string, Array<{ name: string; value: string }>> = {
+    claude: [
+      { name: 'Claude Sonnet 4 (recomendado)', value: 'claude-sonnet-4-20250514' },
+      { name: 'Claude Haiku 3.5 (rápido)', value: 'claude-haiku-4-5-20251001' },
+      { name: 'Claude Opus 4 (máxima calidad)', value: 'claude-opus-4-20250514' },
+    ],
+    openai: [
+      { name: 'GPT-4o (recomendado)', value: 'gpt-4o' },
+      { name: 'GPT-4o mini (rápido)', value: 'gpt-4o-mini' },
+      { name: 'GPT-4.1 (último)', value: 'gpt-4.1' },
+      { name: 'o3-mini (razonamiento)', value: 'o3-mini' },
+    ],
+    gemini: [
+      { name: 'Gemini 2.5 Flash (recomendado)', value: 'gemini-2.5-flash' },
+      { name: 'Gemini 2.5 Pro (máxima calidad)', value: 'gemini-2.5-pro' },
+      { name: 'Gemini 2.0 Flash (rápido)', value: 'gemini-2.0-flash' },
+    ],
+    deepseek: [
+      { name: 'DeepSeek Chat (recomendado)', value: 'deepseek-chat' },
+      { name: 'DeepSeek Reasoner', value: 'deepseek-reasoner' },
+    ],
+    groq: [
+      { name: 'Llama 3.3 70B (recomendado)', value: 'llama-3.3-70b-versatile' },
+      { name: 'Llama 3.1 8B (rápido)', value: 'llama-3.1-8b-instant' },
+      { name: 'Mixtral 8x7B', value: 'mixtral-8x7b-32768' },
+    ],
+  };
+
+  // API Key (todos excepto Ollama)
+  if (provider !== 'ollama') {
+    const providerNames: Record<string, string> = {
+      claude: 'Anthropic', openai: 'OpenAI', gemini: 'Google AI',
+      deepseek: 'DeepSeek', groq: 'Groq',
+    };
+
     const { apiKey } = await inquirer.prompt([{
       type: 'password',
       name: 'apiKey',
-      message: 'API Key de Anthropic:',
+      message: `API Key de ${providerNames[provider]}:`,
       mask: '*',
       validate: (v: string) => v.length > 10 || 'Ingresa una API Key válida',
     }]);
     config.apiKey = apiKey;
+  }
 
-    const { model } = await inquirer.prompt([{
-      type: 'select' as 'list',
-      name: 'model',
-      message: 'Modelo:',
-      choices: [
-        { name: 'Claude Sonnet 4 (recomendado)', value: 'claude-sonnet-4-20250514' },
-        { name: 'Claude Haiku 3.5 (rápido)', value: 'claude-haiku-4-5-20251001' },
-        { name: 'Claude Opus 4 (máxima calidad)', value: 'claude-opus-4-20250514' },
-      ],
-    }]);
-    config.model = model;
-  } else {
+  // Selección de modelo
+  if (provider === 'ollama') {
     const { model } = await inquirer.prompt([{
       type: 'input',
       name: 'model',
       message: 'Modelo de Ollama:',
       default: 'llama3',
+    }]);
+    config.model = model;
+  } else {
+    const { model } = await inquirer.prompt([{
+      type: 'select' as 'list',
+      name: 'model',
+      message: 'Modelo:',
+      choices: modelChoices[provider],
     }]);
     config.model = model;
   }
@@ -435,7 +473,7 @@ async function handleConnect(): Promise<void> {
     showSuccess('Configuración guardada.');
   } else {
     spinner.fail(c.error('No se pudo conectar'));
-    showError('Verifica credenciales o que Ollama esté corriendo.');
+    showError('Verifica tu API Key, conexión a internet, o que Ollama esté corriendo.');
   }
 }
 
