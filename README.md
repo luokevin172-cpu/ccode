@@ -148,13 +148,30 @@ La IA compara los **criterios de aceptacion** de cada tarea con los **archivos r
 
 | Accion | Que hace |
 |--------|----------|
-| **Conectar IA** | Configura Claude o Ollama como proveedor |
+| **Conectar IA** | Configura tu proveedor de IA (Claude, OpenAI, Gemini, DeepSeek, Groq, Ollama) |
 | **Siguiente tarea** | Muestra la tarea mas prioritaria y ofrece iniciarla |
 | **Verificar progreso** | La IA escanea el proyecto y actualiza estados |
 | **Completar tarea** | Marca como completada, registra en memoria |
 | **Re-planificar** | Genera nuevas tareas considerando lo ya completado |
 | **Ver estado** | Dashboard con barra de progreso y estadisticas |
 | **Ver contexto** | Muestra cualquier archivo de `.ccode/` |
+
+---
+
+## Proveedores de IA soportados
+
+CCODE funciona con cualquiera de estos proveedores. Solo necesitas una API Key (excepto Ollama que corre local):
+
+| Proveedor | Modelos | Nota |
+|-----------|---------|------|
+| **Claude** (Anthropic) | Sonnet 4, Haiku 3.5, Opus 4 | Recomendado |
+| **OpenAI** (ChatGPT) | GPT-4o, GPT-4o mini, GPT-4.1, o3-mini | El mas popular |
+| **Google Gemini** | 2.5 Flash, 2.5 Pro, 2.0 Flash | Gratis con limites |
+| **DeepSeek** | Chat, Reasoner | Economico |
+| **Groq** | Llama 3.3 70B, Llama 3.1 8B, Mixtral 8x7B | Ultra-rapido, tier gratis |
+| **Ollama** | Cualquier modelo local | Sin internet, sin API key |
+
+Al ejecutar "Conectar IA" desde el menu, CCODE te muestra los proveedores disponibles, te pide la API Key y te deja elegir el modelo. Prueba la conexion automaticamente antes de guardar.
 
 ---
 
@@ -224,9 +241,13 @@ src/
     prompt-builder.ts → Meta-prompts adaptativos, generacion y verificacion
   ai/
     provider.ts       → Interfaz comun IAIProvider (patron Adapter)
-    claude.ts         → Adapter para Claude (API de Anthropic)
+    claude.ts         → Adapter para Claude (Anthropic)
+    openai.ts         → Adapter para OpenAI (ChatGPT)
+    gemini.ts         → Adapter para Google Gemini
+    deepseek.ts       → Adapter para DeepSeek
+    groq.ts           → Adapter para Groq (inferencia ultra-rapida)
     ollama.ts         → Adapter para Ollama (modelos locales)
-    manager.ts        → Gestion de configuracion y conexion
+    manager.ts        → Factory y gestion de configuracion
   utils/
     files.ts          → Abstraccion del sistema de archivos
 ```
@@ -314,7 +335,7 @@ El proyecto incluye una guia de aprendizaje modular bajo la metodologia **QP2C**
 | [01 — CLI y Sesion](docs/learning/modules/01-cli-session.md) | Arquitectura CLI, loop persistente, menu contextual |
 | [02 — Contexto Persistente](docs/learning/modules/02-context-persistence.md) | ContextEngine, TaskEngine, estado en `.ccode/` |
 | [03 — Generacion de Contexto](docs/learning/modules/03-context-generation.md) | PromptBuilder, meta-prompts, adaptacion de complejidad |
-| [04 — Proveedores de IA](docs/learning/modules/04-ai-providers.md) | Patron Adapter, Claude, Ollama, AIManager |
+| [04 — Proveedores de IA](docs/learning/modules/04-ai-providers.md) | Patron Adapter, 6 proveedores, AIManager |
 | [05 — Watcher y Verificacion](docs/learning/modules/05-watcher-verify.md) | FileWatcher, verificacion automatica de tareas |
 
 Documentos adicionales:
