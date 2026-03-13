@@ -1,6 +1,6 @@
 {
   "name": "@korl3one/ccode",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Persistent context CLI for AI-assisted development. Generates documentation, architecture, rules, and tasks — synced to Claude Code, Gemini CLI, Cursor, Copilot, and AGENTS.md.",
   "type": "module",
   "main": "dist/cli/index.js",
