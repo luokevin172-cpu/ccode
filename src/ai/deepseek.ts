@@ -6,41 +6,43 @@ import { IAIProvider, IAIConfig } from './provider.js';
  * Usa formato compatible con OpenAI.
  */
 export class DeepSeekAdapter implements IAIProvider {
-  private config: Required<Pick<IAIConfig, 'apiKey' | 'model' | 'baseUrl'>>;
+  private apiKey: string;
+  private model: string;
 
   constructor(config: IAIConfig) {
-    this.config = {
-      apiKey: config.apiKey || '',
-      model: config.model || 'deepseek-chat',
-      baseUrl: config.baseUrl || 'https://api.deepseek.com/v1/chat/completions',
-    };
+    this.apiKey = config.apiKey || '';
+    this.model = config.model || 'deepseek-chat';
   }
 
   getName(): string {
-    return `DeepSeek (${this.config.model})`;
+    return `DeepSeek (${this.model})`;
   }
 
   async generate(prompt: string): Promise<string> {
-    if (!this.config.apiKey) {
+    if (!this.apiKey) {
       throw new Error('API Key de DeepSeek no configurada.');
     }
 
     const response = await axios.post(
-      this.config.baseUrl,
+      'https://api.deepseek.com/v1/chat/completions',
       {
-        model: this.config.model,
+        model: this.model,
         max_tokens: 8096,
         messages: [{ role: 'user', content: prompt }],
       },
       {
         headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         timeout: 120000,
       }
     );
 
-    return response.data.choices[0].message.content;
+    const text = response.data?.choices?.[0]?.message?.content;
+    if (!text) {
+      throw new Error('DeepSeek respondio pero sin contenido. Intenta de nuevo.');
+    }
+    return text;
   }
 }

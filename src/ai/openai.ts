@@ -5,41 +5,43 @@ import { IAIProvider, IAIConfig } from './provider.js';
  * Adaptador para OpenAI (ChatGPT).
  */
 export class OpenAIAdapter implements IAIProvider {
-  private config: Required<Pick<IAIConfig, 'apiKey' | 'model' | 'baseUrl'>>;
+  private apiKey: string;
+  private model: string;
 
   constructor(config: IAIConfig) {
-    this.config = {
-      apiKey: config.apiKey || '',
-      model: config.model || 'gpt-4o',
-      baseUrl: config.baseUrl || 'https://api.openai.com/v1/chat/completions',
-    };
+    this.apiKey = config.apiKey || '';
+    this.model = config.model || 'gpt-4o';
   }
 
   getName(): string {
-    return `OpenAI (${this.config.model})`;
+    return `OpenAI (${this.model})`;
   }
 
   async generate(prompt: string): Promise<string> {
-    if (!this.config.apiKey) {
+    if (!this.apiKey) {
       throw new Error('API Key de OpenAI no configurada.');
     }
 
     const response = await axios.post(
-      this.config.baseUrl,
+      'https://api.openai.com/v1/chat/completions',
       {
-        model: this.config.model,
+        model: this.model,
         max_tokens: 8096,
         messages: [{ role: 'user', content: prompt }],
       },
       {
         headers: {
-          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
         timeout: 120000,
       }
     );
 
-    return response.data.choices[0].message.content;
+    const text = response.data?.choices?.[0]?.message?.content;
+    if (!text) {
+      throw new Error('OpenAI respondio pero sin contenido. Intenta de nuevo.');
+    }
+    return text;
   }
 }

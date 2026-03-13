@@ -5,26 +5,24 @@ import { IAIProvider, IAIConfig } from './provider.js';
  * Adaptador para Google Gemini.
  */
 export class GeminiAdapter implements IAIProvider {
-  private config: Required<Pick<IAIConfig, 'apiKey' | 'model' | 'baseUrl'>>;
+  private apiKey: string;
+  private model: string;
 
   constructor(config: IAIConfig) {
-    this.config = {
-      apiKey: config.apiKey || '',
-      model: config.model || 'gemini-2.5-flash',
-      baseUrl: config.baseUrl || 'https://generativelanguage.googleapis.com/v1beta/models',
-    };
+    this.apiKey = config.apiKey || '';
+    this.model = config.model || 'gemini-2.5-flash';
   }
 
   getName(): string {
-    return `Gemini (${this.config.model})`;
+    return `Gemini (${this.model})`;
   }
 
   async generate(prompt: string): Promise<string> {
-    if (!this.config.apiKey) {
+    if (!this.apiKey) {
       throw new Error('API Key de Google AI no configurada.');
     }
 
-    const url = `${this.config.baseUrl}/${this.config.model}:generateContent?key=${this.config.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
 
     const response = await axios.post(
       url,
@@ -38,6 +36,10 @@ export class GeminiAdapter implements IAIProvider {
       }
     );
 
-    return response.data.candidates[0].content.parts[0].text;
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error('Gemini respondio pero sin contenido. Intenta de nuevo.');
+    }
+    return text;
   }
 }

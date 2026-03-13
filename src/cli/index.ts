@@ -13,7 +13,8 @@ import { FileUtils } from '../utils/files.js';
 import { ContextEngine } from '../core/context.js';
 import { TaskEngine, ITask } from '../core/tasks.js';
 import { PromptBuilder } from '../core/prompt-builder.js';
-import { AIManager, ICCODEConfig } from '../ai/manager.js';
+import { AIManager, ICCODEConfig, PROVIDER_KEY_URLS, DetectedProvider } from '../ai/manager.js';
+import { exec } from 'child_process';
 import { FileWatcher, displayChanges } from './watcher.js';
 
 // ─── Estado global de sesión ────────────────────────────────────────
@@ -42,40 +43,61 @@ async function requireAI(): Promise<ICCODEConfig | null> {
   return config;
 }
 
+function openBrowser(url: string): void {
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+  exec(`${cmd} "${url}"`);
+}
+
 async function promptAIConfig(): Promise<ICCODEConfig> {
+  // Auto-detect available providers
+  const spinner = ora({ text: 'Detectando proveedores de IA disponibles...', color: 'cyan', spinner: 'dots' }).start();
+  const detected = await AIManager.detectProviders();
+  spinner.stop();
+
+  if (detected.length > 0) {
+    console.log(c.success('  Proveedores detectados automaticamente:'));
+    for (const d of detected) {
+      console.log(c.accent(`    ${d.provider} (${d.source})`));
+    }
+    console.log('');
+  }
+
+  // Build provider choices with detection status
+  const providerChoices = [
+    { name: `  Claude (Anthropic)${detected.some(d => d.provider === 'claude') ? c.success(' [detectado]') : ''} — Recomendado`, value: 'claude' },
+    { name: `  OpenAI (ChatGPT)${detected.some(d => d.provider === 'openai') ? c.success(' [detectado]') : ''}`, value: 'openai' },
+    { name: `  Google Gemini${detected.some(d => d.provider === 'gemini') ? c.success(' [detectado]') : ''} — Tier gratuito`, value: 'gemini' },
+    { name: `  DeepSeek${detected.some(d => d.provider === 'deepseek') ? c.success(' [detectado]') : ''} — Economico`, value: 'deepseek' },
+    { name: `  Groq${detected.some(d => d.provider === 'groq') ? c.success(' [detectado]') : ''} — Ultra-rapido, tier gratuito`, value: 'groq' },
+    { name: `  Ollama (local)${detected.some(d => d.provider === 'ollama') ? c.success(' [detectado]') : c.dim(' — requiere ollama serve')}`, value: 'ollama' },
+  ];
+
   const { provider } = await inquirer.prompt([{
     type: 'select' as 'list',
     name: 'provider',
     message: 'Proveedor de IA:',
-    choices: [
-      { name: '  Claude (Anthropic) — Recomendado', value: 'claude' },
-      { name: '  OpenAI (ChatGPT)', value: 'openai' },
-      { name: '  Google Gemini', value: 'gemini' },
-      { name: '  DeepSeek', value: 'deepseek' },
-      { name: '  Groq (ultra-rápido)', value: 'groq' },
-      { name: '  Ollama (local, sin API key)', value: 'ollama' },
-    ],
+    choices: providerChoices,
   }]);
 
   const config: ICCODEConfig = { provider };
 
-  // Modelos por proveedor
+  // Model choices per provider
   const modelChoices: Record<string, Array<{ name: string; value: string }>> = {
     claude: [
       { name: 'Claude Sonnet 4 (recomendado)', value: 'claude-sonnet-4-20250514' },
-      { name: 'Claude Haiku 3.5 (rápido)', value: 'claude-haiku-4-5-20251001' },
-      { name: 'Claude Opus 4 (máxima calidad)', value: 'claude-opus-4-20250514' },
+      { name: 'Claude Haiku 3.5 (rapido)', value: 'claude-haiku-4-5-20251001' },
+      { name: 'Claude Opus 4 (maxima calidad)', value: 'claude-opus-4-20250514' },
     ],
     openai: [
       { name: 'GPT-4o (recomendado)', value: 'gpt-4o' },
-      { name: 'GPT-4o mini (rápido)', value: 'gpt-4o-mini' },
-      { name: 'GPT-4.1 (último)', value: 'gpt-4.1' },
+      { name: 'GPT-4o mini (rapido)', value: 'gpt-4o-mini' },
+      { name: 'GPT-4.1 (ultimo)', value: 'gpt-4.1' },
       { name: 'o3-mini (razonamiento)', value: 'o3-mini' },
     ],
     gemini: [
       { name: 'Gemini 2.5 Flash (recomendado)', value: 'gemini-2.5-flash' },
-      { name: 'Gemini 2.5 Pro (máxima calidad)', value: 'gemini-2.5-pro' },
-      { name: 'Gemini 2.0 Flash (rápido)', value: 'gemini-2.0-flash' },
+      { name: 'Gemini 2.5 Pro (maxima calidad)', value: 'gemini-2.5-pro' },
+      { name: 'Gemini 2.0 Flash (rapido)', value: 'gemini-2.0-flash' },
     ],
     deepseek: [
       { name: 'DeepSeek Chat (recomendado)', value: 'deepseek-chat' },
@@ -83,37 +105,82 @@ async function promptAIConfig(): Promise<ICCODEConfig> {
     ],
     groq: [
       { name: 'Llama 3.3 70B (recomendado)', value: 'llama-3.3-70b-versatile' },
-      { name: 'Llama 3.1 8B (rápido)', value: 'llama-3.1-8b-instant' },
+      { name: 'Llama 3.1 8B (rapido)', value: 'llama-3.1-8b-instant' },
       { name: 'Mixtral 8x7B', value: 'mixtral-8x7b-32768' },
     ],
   };
 
-  // API Key (todos excepto Ollama)
+  // API Key handling (all except Ollama)
   if (provider !== 'ollama') {
-    const providerNames: Record<string, string> = {
-      claude: 'Anthropic', openai: 'OpenAI', gemini: 'Google AI',
-      deepseek: 'DeepSeek', groq: 'Groq',
-    };
+    const detectedKey = detected.find(d => d.provider === provider)?.apiKey;
 
-    const { apiKey } = await inquirer.prompt([{
-      type: 'password',
-      name: 'apiKey',
-      message: `API Key de ${providerNames[provider]}:`,
-      mask: '*',
-      validate: (v: string) => v.length > 10 || 'Ingresa una API Key válida',
-    }]);
-    config.apiKey = apiKey;
+    if (detectedKey) {
+      const masked = detectedKey.slice(0, 8) + '...' + detectedKey.slice(-4);
+      const { useDetected } = await inquirer.prompt([{
+        type: 'confirm', name: 'useDetected',
+        message: `Se detecto API Key (${masked}). Usar esta?`, default: true,
+      }]);
+      if (useDetected) {
+        config.apiKey = detectedKey;
+      }
+    }
+
+    if (!config.apiKey) {
+      const keyUrl = PROVIDER_KEY_URLS[provider];
+      if (keyUrl) {
+        const { openPage } = await inquirer.prompt([{
+          type: 'confirm', name: 'openPage',
+          message: `Necesitas una API Key. Abrir la pagina para obtenerla?`, default: true,
+        }]);
+        if (openPage) {
+          openBrowser(keyUrl);
+          showInfo(`Abriendo: ${keyUrl}`);
+          showInfo('Copia tu API Key y pegala aqui.');
+          console.log('');
+        }
+      }
+
+      const providerNames: Record<string, string> = {
+        claude: 'Anthropic', openai: 'OpenAI', gemini: 'Google AI',
+        deepseek: 'DeepSeek', groq: 'Groq',
+      };
+
+      const { apiKey } = await inquirer.prompt([{
+        type: 'password',
+        name: 'apiKey',
+        message: `API Key de ${providerNames[provider]}:`,
+        mask: '*',
+        validate: (v: string) => v.length > 10 || 'Ingresa una API Key valida (minimo 10 caracteres)',
+      }]);
+      config.apiKey = apiKey;
+    }
   }
 
-  // Selección de modelo
+  // Model selection
   if (provider === 'ollama') {
-    const { model } = await inquirer.prompt([{
-      type: 'input',
-      name: 'model',
-      message: 'Modelo de Ollama:',
-      default: 'llama3',
-    }]);
-    config.model = model;
+    // List available Ollama models
+    const ollamaModels = await AIManager.listOllamaModels();
+
+    if (ollamaModels.length === 0) {
+      showWarning('No se encontraron modelos en Ollama.');
+      showInfo('Descarga uno primero: ollama pull llama3');
+      const { model } = await inquirer.prompt([{
+        type: 'input',
+        name: 'model',
+        message: 'Nombre del modelo:',
+        default: 'llama3',
+      }]);
+      config.model = model;
+    } else {
+      showSuccess(`${ollamaModels.length} modelos disponibles en Ollama`);
+      const { model } = await inquirer.prompt([{
+        type: 'select' as 'list',
+        name: 'model',
+        message: 'Modelo:',
+        choices: ollamaModels.map(m => ({ name: `  ${m}`, value: m })),
+      }]);
+      config.model = model;
+    }
   } else {
     const { model } = await inquirer.prompt([{
       type: 'select' as 'list',
@@ -122,6 +189,26 @@ async function promptAIConfig(): Promise<ICCODEConfig> {
       choices: modelChoices[provider],
     }]);
     config.model = model;
+  }
+
+  // Verify connection before returning
+  const testSpinner = ora({ text: 'Verificando conexion...', color: 'cyan', spinner: 'dots' }).start();
+  const result = await AIManager.testConnection(config);
+
+  if (result.ok) {
+    testSpinner.succeed(c.success('Conexion verificada'));
+  } else {
+    testSpinner.fail(c.error('Error de conexion'));
+    showError(result.error || 'No se pudo conectar.');
+
+    const { retry } = await inquirer.prompt([{
+      type: 'confirm', name: 'retry',
+      message: 'Intentar con otra configuracion?', default: true,
+    }]);
+    if (retry) {
+      return promptAIConfig(); // Recursive retry
+    }
+    throw new Error('Configuracion de IA cancelada.');
   }
 
   return config;
@@ -473,17 +560,9 @@ async function handleConnect(): Promise<void> {
 
   const config = await promptAIConfig();
 
-  const spinner = ora({ text: 'Verificando conexión...', color: 'cyan', spinner: 'dots' }).start();
-  const success = await AIManager.testConnection(config);
-
-  if (success) {
-    spinner.succeed(c.success('Conexión verificada'));
-    await AIManager.saveConfig(config);
-    showSuccess('Configuración guardada.');
-  } else {
-    spinner.fail(c.error('No se pudo conectar'));
-    showError('Verifica tu API Key, conexión a internet, o que Ollama esté corriendo.');
-  }
+  // promptAIConfig already verifies connection, just save
+  await AIManager.saveConfig(config);
+  showSuccess('Configuracion guardada.');
 }
 
 // ─── PLAN ───────────────────────────────────────────────────────────
@@ -1044,13 +1123,14 @@ async function handleDoctor(): Promise<void> {
   if (config) {
     console.log(c.success(`  ✓ Configurado: ${config.provider} (${config.model || 'default'})`));
 
-    // Test de conexión
-    const spinner = ora({ text: '  Probando conexión...', color: 'cyan', spinner: 'dots' }).start();
-    const connected = await AIManager.testConnection(config);
-    if (connected) {
-      spinner.succeed(c.success('Conexión activa'));
+    // Test de conexion
+    const spinner = ora({ text: '  Probando conexion...', color: 'cyan', spinner: 'dots' }).start();
+    const connResult = await AIManager.testConnection(config);
+    if (connResult.ok) {
+      spinner.succeed(c.success('Conexion activa'));
     } else {
       spinner.fail(c.error('No se pudo conectar'));
+      showError(`  ${connResult.error}`);
       issues++;
     }
   } else {

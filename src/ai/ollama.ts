@@ -5,33 +5,40 @@ import { IAIProvider, IAIConfig } from './provider.js';
  * Adaptador para Ollama (local).
  */
 export class OllamaAdapter implements IAIProvider {
-  private config: Required<Pick<IAIConfig, 'model' | 'baseUrl'>>;
+  private model: string;
+  private baseUrl: string;
 
   constructor(config: IAIConfig) {
-    this.config = {
-      model: config.model || 'llama3',
-      baseUrl: config.baseUrl || 'http://localhost:11434/api/generate',
-    };
+    this.model = config.model || 'llama3';
+    this.baseUrl = config.baseUrl || 'http://localhost:11434';
   }
 
   getName(): string {
-    return `Ollama (${this.config.model})`;
+    return `Ollama (${this.model})`;
   }
 
   async generate(prompt: string): Promise<string> {
     const response = await axios.post(
-      this.config.baseUrl,
+      `${this.baseUrl}/api/generate`,
       {
-        model: this.config.model,
+        model: this.model,
         prompt,
         stream: false,
       },
       {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 120000,
+        timeout: 300000, // 5 min for local models (can be slow)
       }
     );
 
-    return response.data.response;
+    const text = response.data?.response;
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      throw new Error(
+        `Ollama respondio pero sin contenido. Verifica que el modelo "${this.model}" este descargado.\n` +
+        `  Ejecuta: ollama pull ${this.model}`
+      );
+    }
+
+    return text;
   }
 }
