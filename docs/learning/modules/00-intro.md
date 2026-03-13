@@ -41,7 +41,7 @@ Además, CCODE **adapta la complejidad**: un login simple no necesita diagramas 
 
 - Eliminar la pérdida de contexto entre sesiones
 - Mantener coherencia arquitectónica a lo largo del desarrollo
-- Permitir que cualquier IA (Claude, GPT, Ollama) entienda el proyecto al instante
+- Permitir que cualquier IA (Claude, Gemini, Cursor, Copilot) entienda el proyecto al instante
 - Guiar el desarrollo con un checklist de tareas verificables
 - Registrar decisiones para trazabilidad histórica
 

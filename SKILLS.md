@@ -1,63 +1,65 @@
-# Competencias Tecnicas (SKILLS.md)
+# Technical Competencies
 
-Habilidades requeridas para desarrollar, mantener y entender CCODE.
+Skills required to develop, maintain, and understand CCODE.
 
 ## Core Stack
 
 ### Node.js & TypeScript
-- **Nivel:** Intermedio-Avanzado
-- **Conceptos:** Async/Await, ESM (import/export), tipado estatico, generics, interfaces
-- **Nota v2:** El proyecto usa `"type": "module"` con `NodeNext` resolution. Todas las dependencias principales (chalk v5, inquirer v13, ora v8) son ESM-only.
+- **Level:** Intermediate-Advanced
+- **Concepts:** Async/Await, ESM (import/export), static typing, generics, interfaces
+- **Note:** The project uses `"type": "module"` with `NodeNext` resolution. All main dependencies (chalk v5, inquirer v13, ora v8) are ESM-only.
 
 ### Git
-- **Nivel:** Intermedio
-- **Conceptos:** Branching, conventional commits, `.gitignore`
+- **Level:** Intermediate
+- **Concepts:** Branching, conventional commits, `.gitignore`
 
 ## CLI Development
 
 ### Commander.js
-- **Uso:** Definicion de comandos y entry point
-- **En v2:** Se usa principalmente para el comando `init`. La sesion persistente maneja la interaccion via menus de Inquirer.
+- **Usage:** Command definitions and entry point
+- **Note:** Used for individual commands (`init`, `sync`, `doctor`, etc.). The persistent session handles interaction via Inquirer menus.
 
 ### Inquirer v13
-- **Uso:** Prompts interactivos, wizards, menus contextuales
-- **Nota:** v13 renombro `type: 'list'` a `type: 'select'`
+- **Usage:** Interactive prompts, wizards, contextual menus
+- **Note:** v13 renamed `type: 'list'` to `type: 'select'`
 
 ### Chalk v5 + Ora v8
-- **Uso:** Colores en terminal y spinners de progreso
-- **Nota:** Ambos son ESM-only, requieren `import` (no `require`)
+- **Usage:** Terminal colors and progress spinners
+- **Note:** Both are ESM-only, require `import` (not `require`)
 
-## Arquitectura y Patrones
+## Architecture & Patterns
 
-### Persistencia de Contexto
-- **Concepto central:** Todo el estado del proyecto vive en `.ccode/` — archivos JSON y Markdown versionables con Git
-- **Patrones:** Local-First Software, State Persistence
+### Context Persistence
+- **Core concept:** All project state lives in `.ccode/` — JSON and Markdown files, versionable with Git
+- **Patterns:** Local-First Software, State Persistence
 
-### Patron Adapter (IA)
-- **Aplicacion:** `IAIProvider` como interfaz comun, `ClaudeAdapter` y `OllamaAdapter` como implementaciones
-- **Beneficio:** Agregar proveedores nuevos no requiere cambios en el resto del sistema
+### Adapter Pattern (AI)
+- **Application:** `IAIProvider` as common interface, `ClaudeAdapter` and `GeminiAdapter` as implementations
+- **Benefit:** Adding new providers requires zero changes to the rest of the system
 
-### Sesion Persistente (Loop REPL)
-- **Concepto:** CCODE no es "ejecutar y salir" — se queda activo observando el proyecto
-- **Componentes:** FileWatcher (fs.watch), menu contextual adaptativo, debounce de cambios
+### Universal Context Sync
+- **Application:** `ContextExporter` reads from `.ccode/` (source of truth) and generates format-specific files for each AI tool
+- **Formats:** AGENTS.md, CLAUDE.md, GEMINI.md, .cursorrules, copilot-instructions.md
+- **Pattern:** Single source of truth with multiple derived outputs
+
+### Persistent Session (REPL Loop)
+- **Concept:** CCODE stays active watching the project, not "run and exit"
+- **Components:** FileWatcher (fs.watch), adaptive contextual menu, change debounce
 
 ## Prompt Engineering
 
-### Meta-prompts adaptativos
-- **Habilidad:** Disenar prompts que adaptan su salida a la complejidad del input
-- **Aplicacion:** `PromptBuilder` genera contexto ligero para proyectos simples y detallado para complejos
-- **Tecnica:** Incluir reglas de adaptacion en el prompt + formato JSON estricto
+### Adaptive Meta-prompts
+- **Skill:** Design prompts that adapt their output to input complexity
+- **Application:** `PromptBuilder` generates lightweight context for simple projects and detailed context for complex ones
+- **Technique:** Include adaptation rules in the prompt + strict JSON format
 
-### Parsing defensivo de respuestas
-- **Habilidad:** Extraer JSON de respuestas impredecibles de LLMs
-- **Tecnica:** Multiples estrategias de parsing (directo → busqueda de braces → regex de code blocks)
+### Defensive Response Parsing
+- **Skill:** Extract JSON from unpredictable LLM responses
+- **Technique:** Multiple parsing strategies (direct → brace search → regex code blocks)
 
-## Recursos recomendados
+## Recommended Resources
 - "Clean Code" (Robert C. Martin)
 - "Node.js Design Patterns" (Mario Casciaro)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
 - [Commander.js](https://github.com/tj/commander.js)
 - [Inquirer.js](https://github.com/SBoudrias/Inquirer.js)
-
----
-*Dominar estas competencias permite contribuir efectivamente a CCODE y entender sus decisiones de diseno.*

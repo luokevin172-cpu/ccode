@@ -13,7 +13,10 @@ import { FileUtils } from '../utils/files.js';
 import { ContextEngine } from '../core/context.js';
 import { TaskEngine, ITask } from '../core/tasks.js';
 import { PromptBuilder } from '../core/prompt-builder.js';
-import { AIManager, ICCODEConfig } from '../ai/manager.js';
+import { AIManager, ICCODEConfig, PROVIDER_INFO, ProviderName } from '../ai/manager.js';
+import { GeminiAdapter } from '../ai/gemini.js';
+import { ContextExporter } from '../core/exports.js';
+import { exec } from 'child_process';
 import { FileWatcher, displayChanges } from './watcher.js';
 
 // ─── Estado global de sesión ────────────────────────────────────────
@@ -42,89 +45,134 @@ async function requireAI(): Promise<ICCODEConfig | null> {
   return config;
 }
 
+function openBrowser(url: string): void {
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+  exec(`${cmd} "${url}"`);
+}
+
 async function promptAIConfig(): Promise<ICCODEConfig> {
-  const { provider } = await inquirer.prompt([{
+  // 1. Auto-detect — zero config if possible
+  const detected = AIManager.autoDetect();
+
+  if (detected) {
+    const info = PROVIDER_INFO[detected.provider];
+    showSuccess(`${info.name} detectado (${detected.source})`);
+
+    const testSpinner = ora({ text: 'Verificando conexion...', color: 'cyan', spinner: 'dots' }).start();
+    const defaultModel = info.models[0].value;
+    const config: ICCODEConfig = {
+      provider: detected.provider,
+      apiKey: detected.apiKey,
+      model: defaultModel,
+      authType: detected.authType,
+    };
+    const testResult = await AIManager.testConnection(config);
+
+    if (testResult.ok) {
+      testSpinner.succeed(c.success(`Conectado a ${info.name}`));
+
+      const { model } = await inquirer.prompt([{
+        type: 'select' as 'list',
+        name: 'model',
+        message: 'Modelo:',
+        choices: info.models,
+      }]);
+      config.model = model;
+      return config;
+    }
+
+    testSpinner.fail(c.error('Sesion expirada'));
+    if (detected.authType === 'oauth') {
+      showWarning('El token de Gemini CLI expiro.');
+      showInfo('Ejecuta "gemini" en otra terminal para refrescar tu sesion.');
+      showInfo('Luego vuelve a correr "ccode init".');
+      console.log('');
+      const { continueManual } = await inquirer.prompt([{
+        type: 'confirm', name: 'continueManual',
+        message: 'Configurar manualmente mientras tanto?', default: true,
+      }]);
+      if (!continueManual) {
+        throw new Error('Ejecuta "gemini" para refrescar tu sesion y vuelve a intentar.');
+      }
+    } else {
+      showError(testResult.error || 'No se pudo conectar.');
+    }
+    console.log('');
+  }
+
+  // 2. Nothing detected — guide setup
+  showInfo('No se detecto ningun proveedor de IA.');
+  console.log('');
+  console.log(c.white('  Opciones para configurar:'));
+  console.log(c.accent('  1. Gemini CLI') + c.dim(' — Instala: npm i -g @anthropic-ai/gemini-cli'));
+  console.log(c.dim('     Luego ejecuta "gemini" una vez para autenticarte con Google.'));
+  console.log(c.accent('  2. Variable de entorno') + c.dim(' — export GOOGLE_API_KEY="tu-key"'));
+  console.log(c.accent('  3. Variable de entorno') + c.dim(' — export ANTHROPIC_API_KEY="tu-key"'));
+  console.log('');
+
+  const { method } = await inquirer.prompt([{
     type: 'select' as 'list',
-    name: 'provider',
-    message: 'Proveedor de IA:',
+    name: 'method',
+    message: 'Como quieres configurar?',
     choices: [
-      { name: '  Claude (Anthropic) — Recomendado', value: 'claude' },
-      { name: '  OpenAI (ChatGPT)', value: 'openai' },
-      { name: '  Google Gemini', value: 'gemini' },
-      { name: '  DeepSeek', value: 'deepseek' },
-      { name: '  Groq (ultra-rápido)', value: 'groq' },
-      { name: '  Ollama (local, sin API key)', value: 'ollama' },
+      { name: '  Tengo una API Key de Gemini (Google)', value: 'gemini-key' },
+      { name: '  Tengo una API Key de Claude (Anthropic)', value: 'claude-key' },
+      { name: '  Obtener API Key de Gemini gratis (abre navegador)', value: 'gemini-browser' },
+      { name: '  Obtener API Key de Claude (abre navegador)', value: 'claude-browser' },
     ],
   }]);
 
-  const config: ICCODEConfig = { provider };
+  const isGemini = method.startsWith('gemini');
+  const provider: ProviderName = isGemini ? 'gemini' : 'claude';
+  const info = PROVIDER_INFO[provider];
 
-  // Modelos por proveedor
-  const modelChoices: Record<string, Array<{ name: string; value: string }>> = {
-    claude: [
-      { name: 'Claude Sonnet 4 (recomendado)', value: 'claude-sonnet-4-20250514' },
-      { name: 'Claude Haiku 3.5 (rápido)', value: 'claude-haiku-4-5-20251001' },
-      { name: 'Claude Opus 4 (máxima calidad)', value: 'claude-opus-4-20250514' },
-    ],
-    openai: [
-      { name: 'GPT-4o (recomendado)', value: 'gpt-4o' },
-      { name: 'GPT-4o mini (rápido)', value: 'gpt-4o-mini' },
-      { name: 'GPT-4.1 (último)', value: 'gpt-4.1' },
-      { name: 'o3-mini (razonamiento)', value: 'o3-mini' },
-    ],
-    gemini: [
-      { name: 'Gemini 2.5 Flash (recomendado)', value: 'gemini-2.5-flash' },
-      { name: 'Gemini 2.5 Pro (máxima calidad)', value: 'gemini-2.5-pro' },
-      { name: 'Gemini 2.0 Flash (rápido)', value: 'gemini-2.0-flash' },
-    ],
-    deepseek: [
-      { name: 'DeepSeek Chat (recomendado)', value: 'deepseek-chat' },
-      { name: 'DeepSeek Reasoner', value: 'deepseek-reasoner' },
-    ],
-    groq: [
-      { name: 'Llama 3.3 70B (recomendado)', value: 'llama-3.3-70b-versatile' },
-      { name: 'Llama 3.1 8B (rápido)', value: 'llama-3.1-8b-instant' },
-      { name: 'Mixtral 8x7B', value: 'mixtral-8x7b-32768' },
-    ],
-  };
-
-  // API Key (todos excepto Ollama)
-  if (provider !== 'ollama') {
-    const providerNames: Record<string, string> = {
-      claude: 'Anthropic', openai: 'OpenAI', gemini: 'Google AI',
-      deepseek: 'DeepSeek', groq: 'Groq',
-    };
-
-    const { apiKey } = await inquirer.prompt([{
-      type: 'password',
-      name: 'apiKey',
-      message: `API Key de ${providerNames[provider]}:`,
-      mask: '*',
-      validate: (v: string) => v.length > 10 || 'Ingresa una API Key válida',
-    }]);
-    config.apiKey = apiKey;
+  // Open browser if needed
+  if (method.endsWith('-browser')) {
+    openBrowser(info.keyUrl);
+    showInfo('Se abrio el navegador. Copia tu API Key y pegala aqui.');
+    console.log('');
   }
 
-  // Selección de modelo
-  if (provider === 'ollama') {
-    const { model } = await inquirer.prompt([{
-      type: 'input',
-      name: 'model',
-      message: 'Modelo de Ollama:',
-      default: 'llama3',
-    }]);
-    config.model = model;
-  } else {
-    const { model } = await inquirer.prompt([{
-      type: 'select' as 'list',
-      name: 'model',
-      message: 'Modelo:',
-      choices: modelChoices[provider],
-    }]);
-    config.model = model;
+  const { apiKey } = await inquirer.prompt([{
+    type: 'password',
+    name: 'apiKey',
+    message: `API Key de ${info.name}:`,
+    mask: '*',
+    validate: (v: string) => v.length > 10 || 'API Key muy corta',
+  }]);
+
+  const { model } = await inquirer.prompt([{
+    type: 'select' as 'list',
+    name: 'model',
+    message: 'Modelo:',
+    choices: info.models,
+  }]);
+
+  const config: ICCODEConfig = { provider, apiKey, model, authType: 'api-key' };
+
+  const testSpinner = ora({ text: 'Verificando conexion...', color: 'cyan', spinner: 'dots' }).start();
+  const result = await AIManager.testConnection(config);
+
+  if (result.ok) {
+    testSpinner.succeed(c.success('Conexion verificada'));
+    const envVar = info.envVars[0];
+    showInfo(`Tip: Para que sea automatico la proxima vez:`);
+    console.log(c.accent(`    export ${envVar}="tu-api-key"`));
+    console.log(c.dim('    Agrega esa linea a tu ~/.zshrc o ~/.bashrc'));
+    console.log('');
+    return config;
   }
 
-  return config;
+  testSpinner.fail(c.error('Error de conexion'));
+  showError(result.error || 'No se pudo conectar.');
+
+  const { retry } = await inquirer.prompt([{
+    type: 'confirm', name: 'retry',
+    message: 'Intentar de nuevo?', default: true,
+  }]);
+  if (retry) return promptAIConfig();
+
+  throw new Error('Configuracion de IA cancelada.');
 }
 
 function listProjectFiles(dir: string, prefix = ''): string[] {
@@ -212,6 +260,7 @@ async function startSession(): Promise<void> {
       { name: `  📊  Ver estado completo`, value: 'status' },
       { name: '  📄  Ver contexto generado', value: 'context' },
       { name: '  🔄  Actualizar contexto (re-analizar proyecto)', value: 'update' },
+      { name: '  🔗  Sincronizar contexto (AGENTS.md, CLAUDE.md, ...)', value: 'sync' },
       { name: '  📤  Exportar contexto para otra IA', value: 'export' },
       { name: '  💡  Explicar proyecto (resumen rápido)', value: 'explain' },
       { name: '  🩺  Doctor (diagnóstico de salud)', value: 'doctor' },
@@ -253,6 +302,7 @@ async function startSession(): Promise<void> {
       status: handleStatus,
       context: handleContext,
       update: handleUpdate,
+      sync: handleSync,
       export: handleExport,
       explain: handleExplain,
       doctor: handleDoctor,
@@ -423,6 +473,20 @@ async function handleInit(): Promise<void> {
     ]);
     console.log('');
 
+    // ─── Sincronizar contexto a todas las herramientas AI ───
+    const syncSpinner = ora({ text: 'Sincronizando contexto con herramientas AI...', color: 'cyan', spinner: 'dots' }).start();
+    try {
+      const exporter = new ContextExporter();
+      const exported = await exporter.exportAll();
+      syncSpinner.succeed(c.success('Contexto sincronizado'));
+
+      console.log(c.dim('\n  Archivos de contexto generados:\n'));
+      showFileTree(exported.map(e => ({ name: e.file, desc: e.label.split('(')[1]?.replace(')', '') || '' })));
+      console.log('');
+    } catch {
+      syncSpinner.warn(c.warning('No se pudo sincronizar (los archivos .ccode/ se crearon correctamente)'));
+    }
+
     showSuccess('CCODE se queda activo observando tu proyecto.');
     showInfo('Abre otra terminal y empieza a desarrollar.');
     showInfo('CCODE detectará los cambios automáticamente.');
@@ -473,17 +537,9 @@ async function handleConnect(): Promise<void> {
 
   const config = await promptAIConfig();
 
-  const spinner = ora({ text: 'Verificando conexión...', color: 'cyan', spinner: 'dots' }).start();
-  const success = await AIManager.testConnection(config);
-
-  if (success) {
-    spinner.succeed(c.success('Conexión verificada'));
-    await AIManager.saveConfig(config);
-    showSuccess('Configuración guardada.');
-  } else {
-    spinner.fail(c.error('No se pudo conectar'));
-    showError('Verifica tu API Key, conexión a internet, o que Ollama esté corriendo.');
-  }
+  // promptAIConfig already verifies connection, just save
+  await AIManager.saveConfig(config);
+  showSuccess('Configuracion guardada.');
 }
 
 // ─── PLAN ───────────────────────────────────────────────────────────
@@ -932,6 +988,56 @@ Responde ÚNICAMENTE con JSON válido:
       console.log(c.accent('  Cambios detectados:'));
       result.changes.forEach(change => console.log(c.dim(`    • ${change}`)));
     }
+
+    // Sincronizar exports después de actualizar contexto
+    const syncSpinner = ora({ text: 'Sincronizando exports...', color: 'cyan', spinner: 'dots' }).start();
+    try {
+      const exporter = new ContextExporter();
+      const existing = await exporter.detectExisting();
+      if (existing.length > 0) {
+        for (const format of existing) {
+          await exporter.exportFormat(format);
+        }
+        syncSpinner.succeed(c.success(`${existing.length} export${existing.length > 1 ? 's' : ''} actualizado${existing.length > 1 ? 's' : ''}`));
+      } else {
+        syncSpinner.info(c.dim('Sin exports previos. Usa "export" para generarlos.'));
+      }
+    } catch {
+      syncSpinner.warn(c.warning('No se pudieron actualizar los exports'));
+    }
+    console.log('');
+  } catch (error: unknown) {
+    spinner.fail('Error');
+    showError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+// ─── SYNC ──────────────────────────────────────────────────────────
+
+async function handleSync(): Promise<void> {
+  if (!(await requireInit())) return;
+
+  showHeader('Sincronizar Contexto', 'Genera archivos de contexto para cada herramienta AI');
+
+  const exporter = new ContextExporter();
+  const existing = await exporter.detectExisting();
+
+  if (existing.length > 0) {
+    showInfo(`Exports existentes: ${existing.map(f => ContextExporter.FORMATS[f].file).join(', ')}`);
+  }
+
+  const spinner = ora({ text: 'Generando archivos de contexto...', color: 'cyan', spinner: 'dots' }).start();
+
+  try {
+    const exported = await exporter.exportAll();
+    spinner.succeed(c.success('Contexto sincronizado con todas las herramientas'));
+
+    console.log('');
+    showFileTree(exported.map(e => ({ name: e.file, desc: e.label.split('(')[1]?.replace(')', '') || '' })));
+    console.log('');
+
+    showInfo('Cada herramienta AI leera su archivo automaticamente.');
+    showInfo('Los archivos se actualizan con cada "sync", "update" o "init".');
     console.log('');
   } catch (error: unknown) {
     spinner.fail('Error');
@@ -946,14 +1052,70 @@ async function handleExport(): Promise<void> {
 
   showHeader('Exportar Contexto');
 
-  const pb = new PromptBuilder();
-  const fullContext = await pb.buildContextPrompt();
+  const { mode } = await inquirer.prompt([{
+    type: 'select' as 'list',
+    name: 'mode',
+    message: 'Tipo de export:',
+    choices: [
+      { name: '  Sincronizar con todas las herramientas AI', value: 'all' },
+      { name: '  Solo export universal (.md para copiar/pegar)', value: 'universal' },
+      { name: '  Elegir herramientas específicas', value: 'pick' },
+    ],
+  }]);
 
-  const exportPath = path.join(process.cwd(), '.ccode', 'context-export.md');
-  await FileUtils.writeFile(exportPath, `# CCODE — Project Context Export\n\n${fullContext}`);
+  const exporter = new ContextExporter();
 
-  showSuccess('Contexto exportado a .ccode/context-export.md');
-  showInfo('Copia el contenido y pégalo en cualquier chat de IA (ChatGPT, Claude, Gemini, etc.).');
+  if (mode === 'universal') {
+    const content = await exporter.generateUniversalExport();
+    const exportPath = path.join(process.cwd(), '.ccode', 'context-export.md');
+    await FileUtils.writeFile(exportPath, content);
+    showSuccess('Contexto exportado a .ccode/context-export.md');
+    showInfo('Copia el contenido y pegalo en cualquier chat de IA.');
+    console.log('');
+    return;
+  }
+
+  if (mode === 'pick') {
+    const formats = Object.entries(ContextExporter.FORMATS);
+    const existing = await exporter.detectExisting();
+
+    const { selected } = await inquirer.prompt([{
+      type: 'checkbox' as 'list',
+      name: 'selected',
+      message: 'Selecciona los formatos:',
+      choices: formats.map(([key, info]) => ({
+        name: `  ${info.label}${existing.includes(key) ? c.dim(' (existe)') : ''}`,
+        value: key,
+        checked: true,
+      })),
+    }]);
+
+    if (selected.length === 0) {
+      showWarning('No se selecciono ningun formato.');
+      return;
+    }
+
+    const spinner = ora({ text: 'Generando exports...', color: 'cyan', spinner: 'dots' }).start();
+    for (const format of selected) {
+      await exporter.exportFormat(format);
+    }
+    spinner.succeed(c.success(`${selected.length} formato${selected.length > 1 ? 's' : ''} exportado${selected.length > 1 ? 's' : ''}`));
+
+    for (const format of selected) {
+      const info = ContextExporter.FORMATS[format];
+      console.log(c.dim(`    ${info.file}`));
+    }
+    console.log('');
+    return;
+  }
+
+  // mode === 'all'
+  const spinner = ora({ text: 'Sincronizando con todas las herramientas AI...', color: 'cyan', spinner: 'dots' }).start();
+  const exported = await exporter.exportAll();
+  spinner.succeed(c.success('Contexto sincronizado'));
+
+  console.log(c.dim('\n  Archivos generados:\n'));
+  showFileTree(exported.map(e => ({ name: e.file, desc: e.label.split('(')[1]?.replace(')', '') || '' })));
   console.log('');
 }
 
@@ -1044,13 +1206,14 @@ async function handleDoctor(): Promise<void> {
   if (config) {
     console.log(c.success(`  ✓ Configurado: ${config.provider} (${config.model || 'default'})`));
 
-    // Test de conexión
-    const spinner = ora({ text: '  Probando conexión...', color: 'cyan', spinner: 'dots' }).start();
-    const connected = await AIManager.testConnection(config);
-    if (connected) {
-      spinner.succeed(c.success('Conexión activa'));
+    // Test de conexion
+    const spinner = ora({ text: '  Probando conexion...', color: 'cyan', spinner: 'dots' }).start();
+    const connResult = await AIManager.testConnection(config);
+    if (connResult.ok) {
+      spinner.succeed(c.success('Conexion activa'));
     } else {
       spinner.fail(c.error('No se pudo conectar'));
+      showError(`  ${connResult.error}`);
       issues++;
     }
   } else {
@@ -1079,7 +1242,26 @@ async function handleDoctor(): Promise<void> {
     }
   }
 
-  // 4. Archivos del proyecto
+  // 4. Exports de contexto
+  console.log('');
+  console.log(c.bold('  Exports de contexto'));
+  const exporter = new ContextExporter();
+  const existingExports = await exporter.detectExisting();
+  if (existingExports.length > 0) {
+    for (const format of existingExports) {
+      const info = ContextExporter.FORMATS[format];
+      console.log(c.success(`  ✓ ${info.file}`));
+    }
+    const missing = Object.keys(ContextExporter.FORMATS).length - existingExports.length;
+    if (missing > 0) {
+      console.log(c.dim(`  ${missing} formato${missing > 1 ? 's' : ''} disponible${missing > 1 ? 's' : ''} sin generar`));
+    }
+  } else {
+    console.log(c.warning('  ⚠ Sin exports — ejecuta "Sincronizar contexto" para generarlos'));
+    issues++;
+  }
+
+  // 5. Archivos del proyecto
   console.log('');
   console.log(c.bold('  Proyecto'));
   const projectFiles = listProjectFiles(process.cwd());
@@ -1127,6 +1309,7 @@ async function main(): Promise<void> {
   program.command('status').description('Estado del proyecto').action(handleStatus);
   program.command('context').description('Ver contexto generado').action(handleContext);
   program.command('update').description('Re-analiza y actualiza el contexto').action(handleUpdate);
+  program.command('sync').description('Sincroniza contexto con todas las herramientas AI').action(handleSync);
   program.command('export').description('Exporta contexto como .md para cualquier IA').action(handleExport);
   program.command('explain').description('Resumen rápido del proyecto').action(handleExplain);
   program.command('doctor').description('Diagnóstico de salud del proyecto').action(handleDoctor);

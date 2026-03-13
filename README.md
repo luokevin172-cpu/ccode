@@ -30,37 +30,39 @@ npm install -g @korl3one/ccode
 
 Every time you switch sessions, models, or tools when working with AI, **you lose your project context**. You end up re-explaining the architecture, previous decisions, and current state over and over again.
 
+And if you use multiple AI tools — Claude Code, Cursor, Gemini CLI, Copilot — you have to configure context files for each one manually.
+
 ## The solution
 
-CCODE stores your project context **inside the repository**. One command generates professional documentation, architecture, rules, and a verifiable task checklist — all adapted to your project's actual complexity.
+CCODE generates and maintains your project context **inside the repository**. One command produces professional documentation, architecture, rules, and a verifiable task checklist — all adapted to your project's actual complexity.
 
-Any developer or AI can read `.ccode/` and understand the project instantly.
+Then it **syncs that context to every major AI tool** automatically.
+
+Any developer or AI can read your project and understand it instantly.
 
 ---
 
-## Demo
+## Universal Context Sync
 
-### `ccode init` — Generate full project context
+This is what makes CCODE different. One command generates context files for **every major AI tool**:
 
-<div align="center">
-<img src="assets/demo-init.svg" alt="ccode init demo" width="700"/>
-</div>
+```bash
+ccode sync
+```
 
-<br/>
+```
+project/
+├── AGENTS.md                        ← Open Standard (60K+ repos)
+├── CLAUDE.md                        ← Claude Code
+├── GEMINI.md                        ← Gemini CLI
+├── .cursorrules                     ← Cursor
+├── .github/copilot-instructions.md  ← GitHub Copilot
+└── .ccode/context-export.md         ← Universal (copy/paste to any AI chat)
+```
 
-### Persistent session — CCODE watches while you code
+Each file is adapted to the tool's expected format. Your project context — architecture, rules, tasks, decisions — synced everywhere, from a single source of truth.
 
-<div align="center">
-<img src="assets/demo-session.svg" alt="ccode session demo" width="700"/>
-</div>
-
-<br/>
-
-### `ccode doctor` — Project health check
-
-<div align="center">
-<img src="assets/demo-doctor.svg" alt="ccode doctor demo" width="700"/>
-</div>
+No manual setup per tool. No copy-pasting between files. Context stays in sync automatically with `ccode init`, `ccode update`, and `ccode sync`.
 
 ---
 
@@ -71,12 +73,13 @@ Any developer or AI can read `.ccode/` and understand the project instantly.
 | | CCODE | Manual prompts |
 |---|:---:|:---:|
 | Persistent project context | ✅ | ❌ |
+| Universal context sync (5+ AI tools) | ✅ | ❌ |
 | Architecture adapted to complexity | ✅ | ❌ |
 | AI-ready documentation | ✅ | ❌ |
 | Verifiable task checklist | ✅ | ❌ |
 | Auto-detect file changes | ✅ | ❌ |
 | AI-powered task verification | ✅ | ❌ |
-| Works with 6 AI providers | ✅ | ❌ |
+| Zero-config AI provider detection | ✅ | ❌ |
 | Context lives in the repo (Git) | ✅ | ❌ |
 
 </div>
@@ -101,6 +104,8 @@ A step-by-step wizard asks about your project and an AI generates the full conte
 | Complex (multiple modules) | Detailed patterns + diagrams | 8-12 |
 
 A simple login doesn't need microservice diagrams. CCODE is smart about it.
+
+After generation, context is automatically synced to all AI tools.
 
 ### 2. Persistent session
 
@@ -129,21 +134,29 @@ CCODE compares **acceptance criteria** against **actual project files**:
 
 It doesn't guess — it verifies.
 
-### 4. Context export
+### 4. Context sync
+
+```bash
+ccode sync
+```
+
+Regenerates context files for every AI tool. Run it after making significant changes, or let `ccode update` handle it when you re-analyze the project.
+
+### 5. Context export
 
 ```bash
 ccode export
 ```
 
-Generates a single `.md` file with your full project context — ready to paste into **any AI chat** (ChatGPT, Claude, Gemini) without connecting an API.
+Three options: sync to all tools, export a universal `.md` for copy/paste into any AI chat, or pick specific tools.
 
-### 5. Project health check
+### 6. Project health check
 
 ```bash
 ccode doctor
 ```
 
-Like a linter, but for your project context. Checks files, AI connection, task status, and tells you what needs attention.
+Like a linter, but for your project context. Checks context files, AI connection, task status, export state, and tells you what needs attention.
 
 ---
 
@@ -153,14 +166,16 @@ Like a linter, but for your project context. Checks files, AI connection, task s
 
 | Provider | Models | Note |
 |----------|--------|------|
-| **Claude** (Anthropic) | Sonnet 4, Haiku 3.5, Opus 4 | Recommended |
-| **OpenAI** (ChatGPT) | GPT-4o, GPT-4o mini, GPT-4.1, o3-mini | Most popular |
-| **Google Gemini** | 2.5 Flash, 2.5 Pro, 2.0 Flash | Free tier available |
-| **DeepSeek** | Chat, Reasoner | Budget-friendly |
-| **Groq** | Llama 3.3 70B, Llama 3.1 8B, Mixtral | Ultra-fast, free tier |
-| **Ollama** | Any local model | Offline, no API key |
+| **Google Gemini** | 2.5 Flash, 2.5 Pro, 2.0 Flash | Free — just a Google account |
+| **Claude** (Anthropic) | Sonnet 4, Haiku 3.5, Opus 4 | Best quality |
 
 </div>
+
+CCODE auto-detects your provider:
+
+1. **Gemini CLI OAuth** — If you have `gemini` CLI installed and authenticated, it works instantly. Zero config.
+2. **Environment variables** — `GOOGLE_API_KEY` or `ANTHROPIC_API_KEY` detected automatically.
+3. **Manual setup** — Guided wizard with browser-based key generation as fallback.
 
 ---
 
@@ -168,20 +183,24 @@ Like a linter, but for your project context. Checks files, AI connection, task s
 
 | Command | What it does |
 |---------|-------------|
-| `ccode init` | Interactive wizard — generates full project context |
-| `ccode update` | Re-analyze project and refresh context with AI |
-| `ccode export` | Export context as a single `.md` for any AI chat |
-| `ccode explain` | Quick project summary for onboarding |
-| `ccode doctor` | Health check — what's good, what's missing |
-| `ccode connect` | Configure AI provider and model |
+| `ccode init` | Interactive wizard — generates full project context + syncs to all AI tools |
+| `ccode sync` | Sync context to all AI tools (AGENTS.md, CLAUDE.md, .cursorrules, ...) |
+| `ccode update` | Re-analyze project with AI and refresh context |
+| `ccode export` | Export context — all tools, universal .md, or pick specific |
+| `ccode verify` | AI-powered task verification against actual project files |
 | `ccode status` | Dashboard with progress bar and stats |
-| `ccode verify` | AI-powered task verification |
+| `ccode doctor` | Health check — context files, AI connection, exports, tasks |
+| `ccode connect` | Configure or reconfigure AI provider |
+| `ccode explain` | Quick project summary for onboarding |
+| `ccode plan` | Generate or regenerate task checklist |
+| `ccode next` | Show and start the next pending task |
+| `ccode complete` | Mark active task as completed |
 
 ---
 
 ## What gets generated
 
-Everything lives in `.ccode/` inside your repository:
+### Source of truth (`.ccode/`)
 
 ```
 .ccode/
@@ -192,8 +211,21 @@ Everything lives in `.ccode/` inside your repository:
 ├── state.json          Active task, workflow stage
 ├── context.json        Project configuration
 ├── memory.md           Decision history
-└── config.json         AI provider config
+├── config.json         AI provider config
+└── context-export.md   Universal export
 ```
+
+### Synced context files (project root)
+
+```
+AGENTS.md                        Open Standard
+CLAUDE.md                        Claude Code
+GEMINI.md                        Gemini CLI
+.cursorrules                     Cursor
+.github/copilot-instructions.md  GitHub Copilot
+```
+
+All derived from `.ccode/`. One source, multiple outputs.
 
 ---
 
@@ -202,8 +234,8 @@ Everything lives in `.ccode/` inside your repository:
 ```
 src/
 ├── cli/           Session, branding, file watcher
-├── core/          Context engine, tasks, prompt builder
-├── ai/            6 provider adapters (Adapter pattern)
+├── core/          Context engine, tasks, prompt builder, exports
+├── ai/            Provider adapters (Adapter pattern)
 └── utils/         File system abstraction
 ```
 
@@ -215,7 +247,11 @@ src/
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
 
-Adding a new AI provider? Just implement `IAIProvider`, add it to the manager switch, done. Zero changes to the rest of the system.
+Adding a new AI provider? Implement `IAIProvider`, add it to the manager, done.
+
+Adding a new export format? Add a method to `ContextExporter`, register the format, done.
+
+Zero changes to the rest of the system in both cases.
 
 ---
 
@@ -223,16 +259,15 @@ Adding a new AI provider? Just implement `IAIProvider`, add it to the manager sw
 
 | Resource | Link |
 |----------|------|
-| Learning guide (6 modules, QP2C) | [docs/learning/](docs/learning/README.md) |
 | Engineering roles | [AGENTS.md](AGENTS.md) |
 | Technical competencies | [SKILLS.md](SKILLS.md) |
-| YouTube tutorials | [@CreativeCode25](https://www.youtube.com/@CreativeCode25) |
+| YouTube | [@CreativeCode25](https://www.youtube.com/@CreativeCode25) |
 
 ---
 
 <div align="center">
 
-### If CCODE helps you, consider giving it a star ⭐
+### If CCODE helps you, consider giving it a star
 
 It helps the project grow and reach more developers.
 
